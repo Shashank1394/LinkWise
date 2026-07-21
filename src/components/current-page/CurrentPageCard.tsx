@@ -42,24 +42,28 @@ export function CurrentPageCard({
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const renderTitle = () => (
-    <div className="flex items-center justify-between gap-4">
-      <CardTitle className="flex items-center gap-2">
-        <Icon
-          path={mdiFileDocument}
-          size="sm"
-          className="shrink-0 text-neutral-fg"
-        />
-        Current Page
-      </CardTitle>
+  const renderTitle = () => {
+    const templateName = page?.template?.name;
 
-      {page && (
-        <Badge variant="bold" colorScheme="primary">
-          {page.template.name}
-        </Badge>
-      )}
-    </div>
-  );
+    return (
+      <div className="flex items-center justify-between gap-4">
+        <CardTitle className="flex items-center gap-2">
+          <Icon
+            path={mdiFileDocument}
+            size="sm"
+            className="shrink-0 text-neutral-fg"
+          />
+          Current Page
+        </CardTitle>
+
+        {templateName && (
+          <Badge variant="bold" colorScheme="primary">
+            {templateName}
+          </Badge>
+        )}
+      </div>
+    );
+  };
 
   if (loading) {
     return (

@@ -1,5 +1,7 @@
 # 🏪 Sitecore Marketplace Starter
 
+# App ID - 929f34b7-6dab-49b3-ac5b-ab2bb203cd23
+
 This project is the starter template for building Sitecore Marketplace extensions. It demonstrates five extension points: **Custom Field**, **Dashboard Widget**, **Fullscreen**, **Pages Context Panel**, and **Standalone**. Each extension point has its own UI and integration with the Sitecore Marketplace SDK.
 
 ## 🧩 Extension Points
@@ -58,7 +60,6 @@ This project is the starter template for building Sitecore Marketplace extension
 
 Note: You cannot access extension point routes directly in the browser (e.g., localhost:3000/...). These routes must be invoked within the Sitecore XM Cloud environment through the configured extension points.To learn how to properly configure and hook up your app to extension points, refer to the official [Sitecore Marketplace documentation](https://doc.sitecore.com/mp/en/developers/marketplace/extension-points.html)
 
-
 1. Create Your Own Repository:
    - You can either fork this repository or create a new template based on it.
    - This gives you a clean starting point with all the necessary scaffolding for Marketplace extension development.
@@ -68,11 +69,13 @@ Note: You cannot access extension point routes directly in the browser (e.g., lo
    - Each folder in app corresponds to a specific extension point (e.g., custom-field-extension, dashboard-widget-extension, etc.).
 
 3. Install dependencies:
+
    ```sh
    npm install
    ```
 
 4. Run the development server:
+
    ```sh
    npm run dev
    ```

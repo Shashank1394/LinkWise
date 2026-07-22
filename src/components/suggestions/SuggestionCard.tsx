@@ -2,34 +2,30 @@
 
 import { useState } from "react";
 
-import { Recommendation } from "./Recommendation";
+import { LinkOpportunity } from "../../lib/recommendations/types";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
-import {
-  mdiContentCopy,
-  mdiFileDocumentOutline,
-  mdiLinkVariant,
-} from "@mdi/js";
+import { mdiContentCopy, mdiLinkVariant, mdiTextBoxOutline } from "@mdi/js";
 
 interface SuggestionCardProps {
-  recommendation: Recommendation;
+  opportunity: LinkOpportunity;
 }
 
-export default function SuggestionCard({
-  recommendation,
-}: SuggestionCardProps) {
+export default function SuggestionCard({ opportunity }: SuggestionCardProps) {
   const [copied, setCopied] = useState(false);
 
-  const confidence = Math.round(recommendation.score * 100);
-
   const badgeColor =
-    confidence >= 95 ? "success" : confidence >= 80 ? "primary" : "warning";
+    opportunity.score >= 95
+      ? "success"
+      : opportunity.score >= 80
+        ? "primary"
+        : "warning";
 
   const copyPath = async () => {
-    await navigator.clipboard.writeText(recommendation.path);
+    await navigator.clipboard.writeText(opportunity.destination.path);
 
     setCopied(true);
 
@@ -42,43 +38,68 @@ export default function SuggestionCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <Icon
-            path={mdiFileDocumentOutline}
+            path={mdiTextBoxOutline}
             size="sm"
             className="mt-1 shrink-0 text-muted-foreground"
           />
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="truncate font-semibold">{recommendation.title}</h3>
+              <h3 className="truncate font-semibold">
+                "{opportunity.sourceText}"
+              </h3>
 
               <Badge variant="bold" colorScheme={badgeColor}>
-                {confidence}%
+                {opportunity.score}%
               </Badge>
             </div>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              {recommendation.reason}
+              {opportunity.reason}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Path + Copy */}
-      <div className="mt-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 rounded-md bg-muted px-2 py-1">
+      {/* Destination */}
+      <div className="mt-4">
+        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Link To
+        </p>
+
+        <div className="flex items-center gap-2 rounded-md bg-muted px-2 py-2">
           <Icon
             path={mdiLinkVariant}
             size="sm"
             className="text-muted-foreground"
           />
 
-          <code className="font-mono text-xs">{recommendation.path}</code>
-        </div>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium">
+              {opportunity.destination.title}
+            </div>
 
+            <code className="font-mono text-xs">
+              {opportunity.destination.path}
+            </code>
+          </div>
+        </div>
+      </div>
+
+      {/* SEO Benefit */}
+      <div className="mt-4 rounded-md border bg-muted/30 p-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          SEO Benefit
+        </p>
+
+        <p className="mt-1 text-sm">{opportunity.seoBenefit}</p>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-4 flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={copyPath}>
           <Icon path={mdiContentCopy} size="sm" />
-
-          {copied ? "Copied" : "Copy"}
+          {copied ? "Copied" : "Copy Path"}
         </Button>
       </div>
     </div>

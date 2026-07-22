@@ -12,15 +12,16 @@ import { Icon } from "@/components/ui/icon";
 import { mdiLinkVariant } from "@mdi/js";
 
 import SuggestionCard from "./SuggestionCard";
-import { recommendations } from "../../data/recommendations";
-import { Recommendation } from "./Recommendation";
+import { LinkOpportunity } from "../../lib/recommendations/types";
 
 interface SuggestedLinksCardProps {
+  opportunities: LinkOpportunity[];
   loading?: boolean;
   error?: string;
 }
 
 export default function SuggestedLinksCard({
+  opportunities,
   loading = false,
   error,
 }: SuggestedLinksCardProps) {
@@ -30,11 +31,11 @@ export default function SuggestedLinksCard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Icon path={mdiLinkVariant} size="sm" />
-            AI Link Recommendations
+            AI Link Opportunities
           </CardTitle>
 
           <CardDescription>
-            Finding the best internal links for this page...
+            Analyzing this page for internal linking opportunities...
           </CardDescription>
         </CardHeader>
 
@@ -51,7 +52,7 @@ export default function SuggestedLinksCard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Icon path={mdiLinkVariant} size="sm" />
-            AI Link Recommendations
+            AI Link Opportunities
           </CardTitle>
         </CardHeader>
 
@@ -69,26 +70,27 @@ export default function SuggestedLinksCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Icon path={mdiLinkVariant} size="sm" />
-          AI Link Recommendations
+          AI Link Opportunities
         </CardTitle>
 
         <CardDescription>
-          Recommended pages to strengthen your internal linking strategy.
+          AI analyzed this page and found phrases that could be linked to
+          existing Sitecore pages.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="px-6 pb-2">
-        {recommendations.length === 0 ? (
+        {opportunities.length === 0 ? (
           <Alert variant="warning">
             <AlertDescription>
-              No recommendations are available for this page yet.
+              No internal linking opportunities were found for this page.
             </AlertDescription>
           </Alert>
         ) : (
-          recommendations.map((recommendation: Recommendation) => (
+          opportunities.map((opportunity) => (
             <SuggestionCard
-              key={recommendation.id}
-              recommendation={recommendation}
+              key={`${opportunity.destination.id}-${opportunity.sourceText}`}
+              opportunity={opportunity}
             />
           ))
         )}

@@ -2,48 +2,30 @@
 
 export default function TestAiPage() {
   async function test() {
+    const currentPage = {
+      id: "home",
+      title: "The Ultimate Guide to Buying Your First Home in Australia",
+      path: "/blogs/the-ultimate-guide-to-buying-your-first-home-in-australia",
+      language: "en",
+      siteName: "propzen",
+      plainTextContent: `
+Buying your first home in Australia requires careful financial planning.
+This guide covers home loans, government schemes,
+property inspections, budgeting and settlement.
+      `,
+    };
+
     const response = await fetch("/api/link-opportunities", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        currentPage: {
-          id: "home",
-          title: "AI Workflows",
-          path: "/ai-workflows",
-          language: "en",
-          plainTextContent:
-            "Sitecore Stream integrates with XM Cloud and Sitecore Search to build AI-powered marketing workflows.",
-        },
-        candidatePages: [
-          {
-            id: "1",
-            title: "Sitecore Stream",
-            path: "/sitecore-stream",
-            plainTextContent:
-              "Sitecore Stream enables AI-powered content workflows.",
-          },
-          {
-            id: "2",
-            title: "XM Cloud",
-            path: "/xm-cloud",
-            plainTextContent: "XM Cloud is Sitecore's SaaS CMS.",
-          },
-          {
-            id: "3",
-            title: "Sitecore Search",
-            path: "/sitecore-search",
-            plainTextContent: "Enterprise search platform from Sitecore.",
-          },
-        ],
-      }),
+      body: JSON.stringify(currentPage),
     });
 
     const json = await response.json();
 
     console.log(json);
-    console.log("Button clicked");
   }
 
   return (

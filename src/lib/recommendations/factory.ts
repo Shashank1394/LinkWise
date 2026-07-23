@@ -1,7 +1,10 @@
+import { createAiProvider } from "../ai/factory";
+import { SitecoreCandidatePageProvider } from "../sitecore/SitecoreCandidatePageProvider";
 import { LinkAnalysisService } from "./LinkAnalysisService";
 
-import { createAiProvider } from "../ai/factory";
-
 export function createLinkAnalysisService() {
-  return new LinkAnalysisService(createAiProvider());
+  return new LinkAnalysisService(
+    createAiProvider(),
+    new SitecoreCandidatePageProvider(),
+  );
 }

@@ -2,6 +2,8 @@ export interface PageReference {
   id: string;
   title: string;
   path: string;
+  description?: string;
+  content?: string;
 }
 
 export interface CurrentPage {
@@ -9,6 +11,7 @@ export interface CurrentPage {
   title: string;
   path: string;
   language: string;
+  siteName: string;
   plainTextContent?: string;
 }
 

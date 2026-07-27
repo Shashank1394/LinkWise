@@ -47,7 +47,6 @@ export async function getAccessToken(): Promise<string> {
   }
 
   const token: JwtResponse = await response.json();
-  console.log(token);
 
   cachedToken = token.access_token;
 

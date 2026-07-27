@@ -15,10 +15,6 @@ export class OpenRouterProvider implements AiProvider {
   async generateLinkOpportunities(
     request: LinkAnalysisRequest,
   ): Promise<LinkOpportunity[]> {
-    console.log("========== OpenRouter ==========");
-    console.log("API Key Exists:", !!process.env.OPENROUTER_API_KEY);
-    console.log("Model:", process.env.OPENROUTER_MODEL);
-
     try {
       const response = await client.chat.completions.create({
         model:
@@ -41,17 +37,11 @@ export class OpenRouterProvider implements AiProvider {
         ],
       });
 
-      console.log("OpenRouter Response:");
-      console.dir(response, { depth: null });
-
       const content = response.choices[0]?.message?.content;
 
       if (!content) {
         throw new Error("OpenRouter returned an empty response.");
       }
-
-      console.log("Raw AI Response:");
-      console.log(content);
 
       let parsed: unknown;
 
@@ -67,9 +57,6 @@ export class OpenRouterProvider implements AiProvider {
       }
 
       const opportunities = LinkOpportunitiesSchema.parse(parsed);
-
-      console.log("Validated Opportunities:");
-      console.dir(opportunities, { depth: null });
 
       return opportunities;
     } catch (error) {

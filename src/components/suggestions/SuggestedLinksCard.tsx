@@ -18,12 +18,14 @@ interface SuggestedLinksCardProps {
   opportunities: LinkOpportunity[];
   loading?: boolean;
   error?: string;
+  onApprove?: (opportunity: LinkOpportunity) => Promise<void>;
 }
 
 export default function SuggestedLinksCard({
   opportunities,
   loading = false,
   error,
+  onApprove,
 }: SuggestedLinksCardProps) {
   if (loading) {
     return (
@@ -91,6 +93,7 @@ export default function SuggestedLinksCard({
             <SuggestionCard
               key={`${opportunity.destination.id}-${opportunity.sourceText}`}
               opportunity={opportunity}
+              onApprove={onApprove}
             />
           ))
         )}

@@ -8,14 +8,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
-import { mdiContentCopy, mdiLinkVariant, mdiTextBoxOutline } from "@mdi/js";
+import {
+  mdiCheck,
+  mdiContentCopy,
+  mdiLinkVariant,
+  mdiTextBoxOutline,
+} from "@mdi/js";
 
 interface SuggestionCardProps {
   opportunity: LinkOpportunity;
+  onApprove?: (opportunity: LinkOpportunity) => Promise<void>;
 }
 
-export default function SuggestionCard({ opportunity }: SuggestionCardProps) {
+export default function SuggestionCard({
+  opportunity,
+  onApprove,
+}: SuggestionCardProps) {
   const [copied, setCopied] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [approved, setApproved] = useState(false);
+  const [approvalError, setApprovalError] = useState<string>();
 
   const badgeColor =
     opportunity.score >= 95
@@ -30,6 +42,24 @@ export default function SuggestionCard({ opportunity }: SuggestionCardProps) {
     setCopied(true);
 
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const approve = async () => {
+    if (!onApprove) return;
+
+    setIsApproving(true);
+    setApprovalError(undefined);
+
+    try {
+      await onApprove(opportunity);
+      setApproved(true);
+    } catch (error) {
+      setApprovalError(
+        error instanceof Error ? error.message : "Unable to add the link.",
+      );
+    } finally {
+      setIsApproving(false);
+    }
   };
 
   return (
@@ -101,7 +131,22 @@ export default function SuggestionCard({ opportunity }: SuggestionCardProps) {
           <Icon path={mdiContentCopy} size="sm" />
           {copied ? "Copied" : "Copy Path"}
         </Button>
+
+        {onApprove && (
+          <Button
+            size="sm"
+            onClick={approve}
+            disabled={isApproving || approved}
+          >
+            <Icon path={mdiCheck} size="sm" />
+            {approved ? "Added" : isApproving ? "Adding..." : "Approve & Add"}
+          </Button>
+        )}
       </div>
+
+      {approvalError && (
+        <p className="mt-2 text-sm text-destructive">{approvalError}</p>
+      )}
     </div>
   );
 }

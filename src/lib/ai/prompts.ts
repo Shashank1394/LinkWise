@@ -24,12 +24,14 @@ You MUST follow these rules:
    - read more
    - documentation
 7. Prefer natural anchor text already present in the content.
-8. Recommend only links that improve user navigation and SEO.
-9. Do not recommend duplicate destinations.
-10. Return ONLY valid JSON.
-11. Do NOT wrap the response in markdown.
-12. Do NOT explain your answer.
-13. If no opportunities exist, return an empty array.
+8. Select sourceText that appears as an exact, contiguous phrase in the supplied content. Do not select text spanning formatted elements or existing links.
+9. Recommend only links that improve user navigation and SEO.
+10. Do not recommend duplicate destinations.
+11. The available pages have already been restricted to real content pages in the permitted site tree. Never alter their IDs, titles, or paths.
+12. Return ONLY valid JSON.
+13. Do NOT wrap the response in markdown.
+14. Do NOT explain your answer.
+15. If no opportunities exist, return an empty array.
 `;
 
 /**

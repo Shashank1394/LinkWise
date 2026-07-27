@@ -1,5 +1,17 @@
 import { getAccessToken } from "./auth";
-import { PageSearchResult, Site } from "./types";
+import {
+  ContentItem,
+  ComponentDefinition,
+  PageComponentsResponse,
+  PageSearchResult,
+  Site,
+  UpdateContentResponse,
+} from "./types";
+
+interface PageHtmlResponse {
+  pageId: string;
+  html: string;
+}
 
 export class AgentApiClient {
   private readonly baseUrl: string;
@@ -108,6 +120,61 @@ export class AgentApiClient {
 
     return this.get<PageSearchResult[]>(
       `/api/v1/pages/search?${params.toString()}`,
+    );
+  }
+
+  /**
+   * GET /api/v1/pages/{pageId}/html
+   * Retrieves the rendered HTML for a page in the selected language.
+   */
+  async getPageHtml(pageId: string, language = "en"): Promise<string> {
+    const params = new URLSearchParams({ language });
+    const page = await this.get<PageHtmlResponse>(
+      `/api/v1/pages/${encodeURIComponent(pageId)}/html?${params.toString()}`,
+    );
+
+    return page.html;
+  }
+
+  async getContentItem(pageId: string, language: string): Promise<ContentItem> {
+    const params = new URLSearchParams({ language });
+
+    return this.get<ContentItem>(
+      `/api/v1/content/${encodeURIComponent(pageId)}?${params.toString()}`,
+    );
+  }
+
+  async getPageComponents(
+    pageId: string,
+    language: string,
+  ): Promise<PageComponentsResponse> {
+    const params = new URLSearchParams({ language });
+
+    return this.get<PageComponentsResponse>(
+      `/api/v1/pages/${encodeURIComponent(pageId)}/components?${params.toString()}`,
+    );
+  }
+
+  async getComponent(componentId: string): Promise<ComponentDefinition> {
+    return this.get<ComponentDefinition>(
+      `/api/v1/components/${encodeURIComponent(componentId)}`,
+    );
+  }
+
+  async updateContentItem(
+    pageId: string,
+    fields: Record<string, unknown>,
+    language: string,
+    siteName: string,
+  ): Promise<UpdateContentResponse> {
+    return this.put<UpdateContentResponse>(
+      `/api/v1/content/${encodeURIComponent(pageId)}`,
+      {
+        fields,
+        language,
+        siteName,
+        createNewVersion: true,
+      },
     );
   }
 }

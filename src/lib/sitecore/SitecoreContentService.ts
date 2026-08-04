@@ -1,6 +1,10 @@
 import { AgentApiClient } from "./AgentApiClient";
 import { mapToCandidatePage } from "./PageMapper";
-import { CurrentPage, LinkOpportunity } from "../recommendations/types";
+import {
+  CandidatePage,
+  CurrentPage,
+  LinkOpportunity,
+} from "../recommendations/types";
 import { isAllowedDestinationPage } from "./pageScope";
 
 export class SitecoreContentService {
@@ -10,6 +14,44 @@ export class SitecoreContentService {
     const results = await this.client.searchPages(siteName, query);
 
     return results.map(mapToCandidatePage);
+  }
+
+  async getContentTreeCandidates(
+    siteName: string,
+    language: string,
+  ): Promise<CandidatePage[]> {
+    const pages = await this.client.getSitePages(siteName, language);
+    const eligiblePages = pages
+      .map((page) => ({
+        id: page.id,
+        title: page.path.split("/").filter(Boolean).at(-1) ?? page.path,
+        path: page.path,
+      }))
+      .filter(isAllowedDestinationPage)
+      .slice(0, 60);
+    const results = await Promise.allSettled(
+      eligiblePages.map((page) => this.client.getContentItem(page.id, language)),
+    );
+
+    return results.flatMap((result, index) => {
+      if (result.status !== "fulfilled") {
+        return [];
+      }
+
+      const item = result.value;
+      const fields = item.fields ?? {};
+      const title = getStringField(fields, ["Title", "Page Title", "NavigationTitle"]);
+      const description = getStringField(fields, ["Description", "Summary", "Teaser"]);
+      const content = getStringField(fields, ["Content", "Text", "Body", "MainContent"]);
+
+      return [{
+        id: item.itemId,
+        title: title || item.name || eligiblePages[index].title,
+        path: item.path,
+        description,
+        plainTextContent: content ? htmlToPlainText(content) : undefined,
+      }];
+    });
   }
 
   async getPagePlainText(pageId: string, language: string): Promise<string> {
@@ -221,6 +263,21 @@ function getRichTextFieldNames(): string[] {
     .split(",")
     .map((name) => name.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function getStringField(
+  fields: Record<string, unknown>,
+  names: string[],
+): string | undefined {
+  for (const name of names) {
+    const value = fields[name];
+
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
 function createSitecoreLink(itemId: string, anchorText: string): string {

@@ -4,6 +4,7 @@ import {
   ComponentDefinition,
   PageComponentsResponse,
   PageSearchResult,
+  SitePage,
   Site,
   UpdateContentResponse,
 } from "./types";
@@ -158,6 +159,14 @@ export class AgentApiClient {
   async getComponent(componentId: string): Promise<ComponentDefinition> {
     return this.get<ComponentDefinition>(
       `/api/v1/components/${encodeURIComponent(componentId)}`,
+    );
+  }
+
+  async getSitePages(siteName: string, language: string): Promise<SitePage[]> {
+    const params = new URLSearchParams({ language });
+
+    return this.get<SitePage[]>(
+      `/api/v1/sites/${encodeURIComponent(siteName)}/pages?${params.toString()}`,
     );
   }
 

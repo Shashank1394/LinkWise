@@ -23,8 +23,12 @@ export class LinkAnalysisService {
 
     const pageToAnalyze = { ...currentPage, plainTextContent };
 
-    const candidatePages =
-      await this.candidatePageProvider.getCandidates(pageToAnalyze);
+    const searchQueries =
+      await this.aiProvider.generateContentSearchQueries(pageToAnalyze);
+    const candidatePages = await this.candidatePageProvider.getCandidates(
+      pageToAnalyze,
+      searchQueries,
+    );
 
     if (candidatePages.length === 0) {
       return [];

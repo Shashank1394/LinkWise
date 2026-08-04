@@ -6,11 +6,14 @@ import { isAllowedDestinationPage } from "./pageScope";
 export class SitecoreCandidatePageProvider implements CandidatePageProvider {
   constructor(private readonly contentService = new SitecoreContentService()) {}
 
-  async getCandidates(currentPage: CurrentPage): Promise<CandidatePage[]> {
-    const searchTerms = this.extractSearchTerms(currentPage);
+  async getCandidates(
+    currentPage: CurrentPage,
+    searchQueries: string[],
+  ): Promise<CandidatePage[]> {
+    const searchTerms = expandSearchQueries(searchQueries);
     const searches = await Promise.allSettled(
-      searchTerms.map((term) =>
-        this.contentService.searchCandidatePages(currentPage.siteName, term),
+      searchTerms.map((query) =>
+        this.contentService.searchCandidatePages(currentPage.siteName, query),
       ),
     );
     const allResults = searches.flatMap((search) =>
@@ -29,56 +32,30 @@ export class SitecoreCandidatePageProvider implements CandidatePageProvider {
       }
     }
 
-    return [...unique.values()].slice(0, 20);
-  }
+    // The Agent API search is lexical. If the AI's concepts do not closely
+    // match page titles, enrich the candidate set from the permitted tree.
+    if (unique.size < 8) {
+      const treeCandidates = await this.contentService.getContentTreeCandidates(
+        currentPage.siteName,
+        currentPage.language,
+      );
 
-  private extractSearchTerms(currentPage: CurrentPage): string[] {
-    const titleWords = this.tokenize(currentPage.title);
-    const contentWords = this.tokenize(currentPage.plainTextContent ?? "");
-    const frequencies = new Map<string, number>();
-
-    for (const word of contentWords) {
-      frequencies.set(word, (frequencies.get(word) ?? 0) + 1);
+      for (const page of treeCandidates) {
+        if (page.id !== currentPage.id && isAllowedDestinationPage(page)) {
+          unique.set(page.id, page);
+        }
+      }
     }
 
-    // Title terms describe the page's subject, so make them more influential.
-    for (const word of titleWords) {
-      frequencies.set(word, (frequencies.get(word) ?? 0) + 3);
-    }
-
-    return [...frequencies.entries()]
-      .sort(([firstWord, firstCount], [secondWord, secondCount]) => {
-        return secondCount - firstCount || secondWord.length - firstWord.length;
-      })
-      .slice(0, 8)
-      .map(([word]) => word);
+    return [...unique.values()].slice(0, 40);
   }
+}
 
-  private tokenize(text: string): string[] {
-    const stopWords = new Set([
-      "the",
-      "and",
-      "for",
-      "with",
-      "your",
-      "this",
-      "that",
-      "into",
-      "from",
-      "guide",
-      "ultimate",
-      "how",
-      "what",
-      "when",
-      "where",
-      "why",
-      "home",
-    ]);
+function expandSearchQueries(queries: string[]): string[] {
+  const terms = queries.flatMap((query) => [
+    query,
+    ...query.split(/\s+/).filter((term) => term.length >= 4),
+  ]);
 
-    return text
-      .toLowerCase()
-      .replace(/[^\w\s]/g, " ")
-      .split(/\s+/)
-      .filter((word) => word.length > 3 && !stopWords.has(word));
-  }
+  return [...new Set(terms.map((term) => term.trim()).filter(Boolean))].slice(0, 20);
 }

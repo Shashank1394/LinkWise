@@ -50,6 +50,11 @@ export interface PageComponentsResponse {
   components?: PageComponent[] | null;
 }
 
+export interface SitePage {
+  id: string;
+  path: string;
+}
+
 export interface ComponentDefinition {
   datasourceFields: Array<{
     name: string;

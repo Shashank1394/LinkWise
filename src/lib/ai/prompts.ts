@@ -34,6 +34,29 @@ You MUST follow these rules:
 15. If no opportunities exist, return an empty array.
 `;
 
+export const contentSearchSystemPrompt = `
+You are the retrieval planner for LinkWise, an internal-linking assistant for Sitecore CMS.
+
+Read the supplied page's rich-text content and return 3 to 8 concise, meaningful semantic search queries. They will be used to search the current Sitecore content tree for pages worth linking to.
+
+Rules:
+1. Focus on the page's main topics, concepts, user intent, products, or services.
+2. Include a mix of broad concepts and specific multi-word concepts, so a lexical CMS search can find related pages even when their titles use different wording.
+3. Do not include generic navigation terms.
+4. Do not include the current page title verbatim unless it is a specific product or concept.
+5. Return ONLY a JSON array of strings. Do not use markdown or explanation.
+`;
+
+export function buildContentSearchPrompt(currentPage: CurrentPage): string {
+  return `
+CURRENT PAGE TITLE
+${currentPage.title}
+
+CURRENT PAGE RICH-TEXT CONTENT
+${currentPage.plainTextContent ?? ""}
+`;
+}
+
 /**
  * Builds the page-specific prompt.
  * This changes for every request.

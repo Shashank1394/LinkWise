@@ -21,6 +21,7 @@ export class SitecoreContentService {
     language: string,
   ): Promise<CandidatePage[]> {
     const pages = await this.client.getSitePages(siteName, language);
+
     const eligiblePages = pages
       .map((page) => ({
         id: page.id,
@@ -29,8 +30,11 @@ export class SitecoreContentService {
       }))
       .filter(isAllowedDestinationPage)
       .slice(0, 60);
+
     const results = await Promise.allSettled(
-      eligiblePages.map((page) => this.client.getContentItem(page.id, language)),
+      eligiblePages.map((page) =>
+        this.client.getContentItem(page.id, language),
+      ),
     );
 
     return results.flatMap((result, index) => {
@@ -40,23 +44,41 @@ export class SitecoreContentService {
 
       const item = result.value;
       const fields = item.fields ?? {};
-      const title = getStringField(fields, ["Title", "Page Title", "NavigationTitle"]);
-      const description = getStringField(fields, ["Description", "Summary", "Teaser"]);
-      const content = getStringField(fields, ["Content", "Text", "Body", "MainContent"]);
+      const title = getStringField(fields, [
+        "Title",
+        "Page Title",
+        "NavigationTitle",
+      ]);
+      const description = getStringField(fields, [
+        "Description",
+        "Summary",
+        "Teaser",
+      ]);
+      const content = getStringField(fields, [
+        "Content",
+        "Text",
+        "Body",
+        "MainContent",
+      ]);
 
-      return [{
-        id: item.itemId,
-        title: title || item.name || eligiblePages[index].title,
-        path: item.path,
-        description,
-        plainTextContent: content ? htmlToPlainText(content) : undefined,
-      }];
+      return [
+        {
+          id: item.itemId,
+          title: title || item.name || eligiblePages[index].title,
+          path: item.path,
+          description,
+          plainTextContent: content ? htmlToPlainText(content) : undefined,
+        },
+      ];
     });
   }
 
   async getPagePlainText(pageId: string, language: string): Promise<string> {
     const pageItem = await this.client.getContentItem(pageId, language);
-    const pageComponents = await this.client.getPageComponents(pageId, language);
+    const pageComponents = await this.client.getPageComponents(
+      pageId,
+      language,
+    );
     const dataSourceFields = await this.getDataSourceRichTextFields(
       pageComponents.components ?? [],
     );
@@ -112,8 +134,14 @@ export class SitecoreContentService {
       );
     }
 
-    const link = createSitecoreLink(opportunity.destination.id, opportunity.anchorText);
-    const updatedValue = source.field.value.replace(opportunity.sourceText, link);
+    const link = createSitecoreLink(
+      opportunity.destination.id,
+      opportunity.anchorText,
+    );
+    const updatedValue = source.field.value.replace(
+      opportunity.sourceText,
+      link,
+    );
 
     await this.client.updateContentItem(
       source.itemId,
@@ -145,13 +173,19 @@ export class SitecoreContentService {
       return { itemId: pageItem.itemId, field: pageField };
     }
 
-    const pageComponents = await this.client.getPageComponents(pageId, language);
+    const pageComponents = await this.client.getPageComponents(
+      pageId,
+      language,
+    );
     const dataSourceFields = await this.getDataSourceRichTextFields(
       pageComponents.components ?? [],
     );
 
     for (const [dataSourceId, richTextFields] of dataSourceFields) {
-      const dataSource = await this.client.getContentItem(dataSourceId, language);
+      const dataSource = await this.client.getContentItem(
+        dataSourceId,
+        language,
+      );
       const field = findLinkableField(
         dataSource.fields,
         sourceText,
@@ -184,11 +218,16 @@ export class SitecoreContentService {
   ): Promise<Map<string, string[]>> {
     const results = await Promise.allSettled(
       components
-        .filter((component): component is { componentId: string; dataSource: string } =>
-          Boolean(component.dataSource),
+        .filter(
+          (
+            component,
+          ): component is { componentId: string; dataSource: string } =>
+            Boolean(component.dataSource),
         )
         .map(async (component) => {
-          const definition = await this.client.getComponent(component.componentId);
+          const definition = await this.client.getComponent(
+            component.componentId,
+          );
           const fields = definition.datasourceFields
             .filter((field) => /rich\s*text/i.test(field.type))
             .map((field) => field.name.toLowerCase());
@@ -228,14 +267,12 @@ function findLinkableField(
       richTextFieldNames.includes(entry[0].toLowerCase()) &&
       entry[1].includes(sourceText),
   );
-  const [field] = entries.sort(
-    ([firstName], [secondName]) => {
-      const firstRank = richTextFieldNames.indexOf(firstName.toLowerCase());
-      const secondRank = richTextFieldNames.indexOf(secondName.toLowerCase());
+  const [field] = entries.sort(([firstName], [secondName]) => {
+    const firstRank = richTextFieldNames.indexOf(firstName.toLowerCase());
+    const secondRank = richTextFieldNames.indexOf(secondName.toLowerCase());
 
-      return firstRank - secondRank;
-    },
-  );
+    return firstRank - secondRank;
+  });
 
   return field ? { name: field[0], value: field[1] } : undefined;
 }
@@ -258,8 +295,9 @@ function getRichTextValues(
 }
 
 function getRichTextFieldNames(): string[] {
-  return (process.env.SITECORE_RICH_TEXT_FIELDS ??
-    "Content,Text,Body,MainContent")
+  return (
+    process.env.SITECORE_RICH_TEXT_FIELDS ?? "Content,Text,Body,MainContent"
+  )
     .split(",")
     .map((name) => name.trim().toLowerCase())
     .filter(Boolean);

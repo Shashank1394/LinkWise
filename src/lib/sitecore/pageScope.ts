@@ -1,7 +1,10 @@
 import { CandidatePage } from "../recommendations/types";
 
-const configuredPageRoot =
-  process.env.SITECORE_PAGE_ROOT ?? "/sitecore/content/demo/propzen/home";
+const configuredPageRoot = process.env.SITECORE_PAGE_ROOT;
+
+if (!configuredPageRoot) {
+  throw new Error("Missing SITECORE_PAGE_ROOT environment variable.");
+}
 
 const allowedPageRoot = normalizePath(configuredPageRoot);
 const dataSourceSegment = /\/(data|datasource|datasources)(?:\/|$)/i;

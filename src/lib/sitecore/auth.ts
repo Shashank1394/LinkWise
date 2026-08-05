@@ -18,8 +18,9 @@ export async function getAccessToken(): Promise<string> {
   const clientId = process.env.SITECORE_CLIENT_ID;
   const clientSecret = process.env.SITECORE_CLIENT_SECRET;
   const authUrl = process.env.SITECORE_AUTH_URL;
+  const audience = process.env.SITECORE_AUTH_AUDIENCE;
 
-  if (!clientId || !clientSecret || !authUrl) {
+  if (!clientId || !clientSecret || !authUrl || !audience) {
     throw new Error("Missing Sitecore authentication environment variables.");
   }
 
@@ -27,7 +28,7 @@ export async function getAccessToken(): Promise<string> {
     client_id: clientId,
     client_secret: clientSecret,
     grant_type: "client_credentials",
-    audience: "https://api.sitecorecloud.io",
+    audience: audience,
   });
 
   const response = await fetch(authUrl, {

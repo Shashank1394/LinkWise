@@ -3,6 +3,7 @@ import { CandidatePageProvider } from "./CandidatePageProvider";
 import { CurrentPage, LinkOpportunity } from "./types";
 import { SitecoreContentService } from "../sitecore/SitecoreContentService";
 import { isAllowedDestinationPage } from "../sitecore/pageScope";
+import { LinkRecommendationAgent } from "./LinkRecommendationAgent";
 
 export class LinkAnalysisService {
   constructor(
@@ -23,21 +24,10 @@ export class LinkAnalysisService {
 
     const pageToAnalyze = { ...currentPage, plainTextContent };
 
-    const searchQueries =
-      await this.aiProvider.generateContentSearchQueries(pageToAnalyze);
-    const candidatePages = await this.candidatePageProvider.getCandidates(
-      pageToAnalyze,
-      searchQueries,
-    );
-
-    if (candidatePages.length === 0) {
-      return [];
-    }
-
-    const opportunities = await this.aiProvider.generateLinkOpportunities({
-      currentPage: pageToAnalyze,
-      candidatePages,
-    });
+    const { candidatePages, opportunities } = await new LinkRecommendationAgent(
+      this.aiProvider,
+      this.candidatePageProvider,
+    ).run(pageToAnalyze);
     const candidatesById = new Map(candidatePages.map((page) => [page.id, page]));
 
     const approvedOpportunities = opportunities.flatMap((opportunity) => {

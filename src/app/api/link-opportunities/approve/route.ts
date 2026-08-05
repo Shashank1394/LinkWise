@@ -4,11 +4,11 @@ import { z } from "zod";
 import { createLinkAnalysisService } from "../../../../lib/recommendations/factory";
 
 const CurrentPageSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  path: z.string().min(1),
-  language: z.string().min(1),
-  siteName: z.string().min(1),
+  id: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(500),
+  path: z.string().trim().min(1).max(2_000),
+  language: z.string().trim().min(1).max(50),
+  siteName: z.string().trim().min(1).max(200),
 });
 
 const LinkOpportunitySchema = z.object({
@@ -30,23 +30,38 @@ const ApprovalRequestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const requestId = crypto.randomUUID();
+  let approvalRequest: z.infer<typeof ApprovalRequestSchema>;
+
   try {
-    const { currentPage, opportunity } = ApprovalRequestSchema.parse(
+    approvalRequest = ApprovalRequestSchema.parse(
       await request.json(),
     );
-
-    await createLinkAnalysisService().approveLink(currentPage, opportunity);
-
-    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
+    console.warn("[LinkWise] Invalid approval request", { requestId, error });
+    return NextResponse.json(
+      { success: false, error: "Invalid request.", requestId },
+      { status: 400 },
+    );
+  }
+
+  try {
+    await createLinkAnalysisService().approveLink(
+      approvalRequest.currentPage,
+      approvalRequest.opportunity,
+    );
+
+    return NextResponse.json({ success: true, requestId });
+  } catch (error) {
+    console.error("[LinkWise] Link approval failed", { requestId, error });
 
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Unable to add the link.",
+        error: "Unable to add the link right now.",
+        requestId,
       },
-      { status: error instanceof z.ZodError ? 400 : 500 },
+      { status: 500 },
     );
   }
 }

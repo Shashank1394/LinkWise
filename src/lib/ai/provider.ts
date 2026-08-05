@@ -5,9 +5,9 @@ import {
 } from "../recommendations/types";
 
 export interface AiProvider {
-  generateContentSearchQueries(currentPage: CurrentPage): Promise<string[]>;
+  requestCandidateSearch(currentPage: CurrentPage): Promise<string[]>;
 
-  generateLinkOpportunities(
+  submitLinkRecommendations(
     request: LinkAnalysisRequest,
   ): Promise<LinkOpportunity[]>;
 }

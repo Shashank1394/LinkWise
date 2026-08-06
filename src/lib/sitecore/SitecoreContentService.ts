@@ -5,10 +5,9 @@ import {
   CurrentPage,
   LinkOpportunity,
 } from "../recommendations/types";
-import { isAllowedDestinationPage } from "./pageScope";
 
 export class SitecoreContentService {
-  constructor(private client = new AgentApiClient()) {}
+  constructor(private readonly client = new AgentApiClient()) {}
 
   async searchCandidatePages(siteName: string, query: string) {
     const results = await this.client.searchPages(siteName, query);
@@ -22,14 +21,23 @@ export class SitecoreContentService {
   ): Promise<CandidatePage[]> {
     const pages = await this.client.getSitePages(siteName, language);
 
+    console.info("[LinkWise][ContentService] Loading site pages", {
+      siteName,
+      language,
+      totalPages: pages.length,
+    });
+
     const eligiblePages = pages
       .map((page) => ({
         id: page.id,
         title: page.path.split("/").filter(Boolean).at(-1) ?? page.path,
         path: page.path,
       }))
-      .filter(isAllowedDestinationPage)
       .slice(0, 60);
+
+    console.info("[LinkWise][ContentService] Candidate pages loaded", {
+      eligiblePages: eligiblePages.length,
+    });
 
     const results = await Promise.allSettled(
       eligiblePages.map((page) =>
@@ -112,14 +120,8 @@ export class SitecoreContentService {
       currentPage.language,
     );
 
-    if (
-      !isAllowedDestinationPage({
-        id: destination.itemId,
-        title: destination.name,
-        path: destination.path,
-      })
-    ) {
-      throw new Error("The selected destination is not an approved site page.");
+    if (!destination) {
+      throw new Error("Destination page could not be found.");
     }
 
     const source = await this.findSourceContentItem(

@@ -7,8 +7,12 @@ export interface JwtResponse {
 export interface Site {
   id: string;
   name: string;
-  displayName: string;
-  url: string;
+  targetHostname: string;
+  rootPath: string;
+}
+
+export interface SitesResponse {
+  sites: Site[];
 }
 
 export interface PageSearchField {

@@ -7,6 +7,7 @@ import {
   SitePage,
   Site,
   UpdateContentResponse,
+  SitesResponse,
 } from "./types";
 
 interface PageHtmlResponse {
@@ -67,7 +68,19 @@ export class AgentApiClient {
    * Retrieves all available sites.
    */
   async getSites(): Promise<Site[]> {
-    return this.request<Site[]>("/api/v1/sites");
+    console.info("[LinkWise][AgentApi] Fetching sites");
+
+    const startedAt = Date.now();
+
+    const response = await this.request<SitesResponse>("/api/v1/sites");
+    console.log(JSON.stringify(response, null, 2));
+
+    console.info("[LinkWise][AgentApi] Sites fetched", {
+      count: response.sites.length,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return response.sites;
   }
 
   /**

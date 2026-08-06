@@ -1,5 +1,4 @@
 import { AiProvider } from "../ai/provider";
-import { CandidatePageProvider } from "./CandidatePageProvider";
 import { CurrentPage, LinkOpportunity } from "./types";
 import { SitecoreContentService } from "../sitecore/SitecoreContentService";
 import { LinkRecommendationAgent } from "./LinkRecommendationAgent";
@@ -7,7 +6,6 @@ import { LinkRecommendationAgent } from "./LinkRecommendationAgent";
 export class LinkAnalysisService {
   constructor(
     private readonly aiProvider: AiProvider,
-    private readonly candidatePageProvider: CandidatePageProvider,
     private readonly contentService: SitecoreContentService,
   ) {}
 
@@ -38,10 +36,9 @@ export class LinkAnalysisService {
       plainTextContent,
     };
 
-    const { candidatePages, opportunities } = await new LinkRecommendationAgent(
-      this.aiProvider,
-      this.candidatePageProvider,
-    ).run(pageToAnalyze);
+    const agent = new LinkRecommendationAgent(this.aiProvider);
+
+    const { candidatePages, opportunities } = await agent.run(pageToAnalyze);
 
     console.info("[LinkWise][LinkAnalysis] Agent completed", {
       candidatePages: candidatePages.length,

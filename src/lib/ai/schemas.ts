@@ -6,6 +6,8 @@ export const PageReferenceSchema = z.object({
   path: z.string(),
 });
 
+export const SelectedPageIdsSchema = z.array(z.string().min(1)).max(10);
+
 export const LinkOpportunitySchema = z.object({
   sourceText: z.string().min(1, "Source text cannot be empty"),
 

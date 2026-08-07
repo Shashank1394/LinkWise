@@ -49,6 +49,8 @@ export async function getAccessToken(): Promise<string> {
 
   const token: JwtResponse = await response.json();
 
+  console.log("JWT Token:", token);
+
   cachedToken = token.access_token;
 
   // Refresh 60 seconds before expiry

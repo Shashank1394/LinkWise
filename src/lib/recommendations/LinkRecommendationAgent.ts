@@ -1,17 +1,13 @@
 import { AiProvider } from "../ai/provider";
 import { createToolRegistry } from "../agent/registerTools";
 import { ToolRegistry } from "../agent/ToolRegistry";
-import { GetCandidatePagesTool } from "../agent/tools/GetCandidatePagesTool";
-import { CandidatePage, CurrentPage, LinkOpportunity } from "./types";
+import { FindRelevantPagesTool } from "../agent/tools/FindRelevantPagesTool";
+import { RelevantPage, CurrentPage, LinkOpportunity } from "./types";
 
-const MAX_CANDIDATES_FOR_RECOMMENDATION = 30;
+const MAX_CANDIDATES = 100;
+const BATCH_SIZE = 10;
+const TARGET_RECOMMENDATIONS = 8;
 
-/**
- * Coordinates the read-only part of link analysis.
- *
- * The agent now performs candidate retrieval through registered tools,
- * making it easy to migrate to full LLM tool-calling later.
- */
 export class LinkRecommendationAgent {
   constructor(
     private readonly aiProvider: AiProvider,
@@ -29,9 +25,7 @@ export class LinkRecommendationAgent {
       language: currentPage.language,
     });
 
-    // -----------------------------------------------------------------------
-    // Step 1 - Ask the AI which topics/pages should be searched
-    // -----------------------------------------------------------------------
+    // Generate search queries
 
     const searchQueries =
       await this.aiProvider.requestCandidateSearch(currentPage);
@@ -42,30 +36,21 @@ export class LinkRecommendationAgent {
       searchQueries,
     });
 
-    // -----------------------------------------------------------------------
-    // Step 2 - Resolve the Candidate Retrieval Tool
-    // -----------------------------------------------------------------------
+    // Get the candidate retrieval tool
 
-    const tool = this.toolRegistry.get<GetCandidatePagesTool>(
-      "get_candidate_pages",
-    );
+    const tool =
+      this.toolRegistry.get<FindRelevantPagesTool>("find_relevant_pages");
 
     if (!tool) {
-      throw new Error('Tool "get_candidate_pages" is not registered.');
+      throw new Error('Tool "find_relevant_pages" is not registered.');
     }
 
     console.info("[LinkWise][Agent] Executing tool", {
       runId,
       tool: tool.name,
-      input: {
-        pageId: currentPage.id,
-        queryCount: searchQueries.length,
-      },
     });
 
-    // -----------------------------------------------------------------------
-    // Step 3 - Execute Tool
-    // -----------------------------------------------------------------------
+    // Retrieve candidate pages
 
     const retrievedCandidates = await tool.execute({
       currentPage,
@@ -78,64 +63,100 @@ export class LinkRecommendationAgent {
       candidatesReturned: retrievedCandidates.length,
     });
 
-    const candidatePages = retrievedCandidates.slice(
-      0,
-      MAX_CANDIDATES_FOR_RECOMMENDATION,
-    );
+    const candidatePages = retrievedCandidates.slice(0, MAX_CANDIDATES);
 
     console.info("[LinkWise][Agent] Candidate retrieval completed", {
       runId,
-      queryCount: searchQueries.length,
       candidatesRetrieved: retrievedCandidates.length,
       candidatesProvidedToAgent: candidatePages.length,
     });
 
     if (candidatePages.length === 0) {
-      console.info("[LinkWise][Agent] No candidate pages found", {
-        runId,
-      });
-
       return {
         runId,
-        candidatePages,
+        relevantPages: [],
         opportunities: [],
       };
     }
 
-    // -----------------------------------------------------------------------
-    // Step 4 - Ask the AI for link recommendations
-    // -----------------------------------------------------------------------
+    // Process candidates in batches
 
-    console.info("[LinkWise][Agent] Generating recommendations", {
-      runId,
-      candidatePages: candidatePages.length,
-    });
+    const batches = this.createBatches(candidatePages);
 
-    const opportunities = await this.aiProvider.submitLinkRecommendations({
-      currentPage,
-      candidatePages,
-    });
+    const recommendations = new Map<string, LinkOpportunity>();
+    let processedBatches = 0;
 
-    console.info("[LinkWise][Agent] Recommendations generated", {
-      runId,
-      recommendations: opportunities.length,
-    });
+    for (const [index, batch] of batches.entries()) {
+      processedBatches++;
+      console.info("[LinkWise][Agent] Processing batch", {
+        runId,
+        batch: index + 1,
+        totalBatches: batches.length,
+        candidates: batch.length,
+      });
+
+      const batchRecommendations =
+        await this.aiProvider.submitLinkRecommendations({
+          currentPage,
+          retrievedPages: batch,
+        });
+
+      console.info("[LinkWise][Agent] Batch completed", {
+        runId,
+        batch: index + 1,
+        recommendations: batchRecommendations.length,
+      });
+
+      for (const recommendation of batchRecommendations) {
+        const key = `${recommendation.sourceText}:${recommendation.destination.id}`;
+
+        recommendations.set(key, recommendation);
+      }
+
+      console.info("[LinkWise][Agent] Current recommendation count", {
+        runId,
+        total: recommendations.size,
+      });
+
+      if (recommendations.size >= TARGET_RECOMMENDATIONS) {
+        console.info("[LinkWise][Agent] Target reached. Stopping early.", {
+          runId,
+          target: TARGET_RECOMMENDATIONS,
+        });
+
+        break;
+      }
+    }
+
+    const opportunities = [...recommendations.values()];
 
     console.info("[LinkWise][Agent] Run completed", {
       runId,
+      batchesProcessed: processedBatches,
+      recommendations: opportunities.length,
       durationMs: Date.now() - startedAt,
     });
 
     return {
       runId,
-      candidatePages,
+      relevantPages: candidatePages,
       opportunities,
     };
+  }
+
+  private createBatches<T>(items: T[]): T[][] {
+    const batches: T[][] = [];
+
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+      batches.push(items.slice(i, i + BATCH_SIZE));
+    }
+
+    return batches;
   }
 }
 
 export interface AgentRecommendationResult {
   runId: string;
-  candidatePages: CandidatePage[];
+  relevantPages: RelevantPage[];
   opportunities: LinkOpportunity[];
 }

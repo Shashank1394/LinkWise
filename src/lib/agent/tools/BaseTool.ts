@@ -16,7 +16,7 @@ export abstract class BaseTool<
     });
 
     try {
-      const result = await this.run(input);
+      const result = await this.executeInternal(input);
 
       console.info("[LinkWise][Tool] Completed", {
         tool: this.name,
@@ -35,5 +35,5 @@ export abstract class BaseTool<
     }
   }
 
-  protected abstract run(input: TInput): Promise<TOutput>;
+  protected abstract executeInternal(input: TInput): Promise<TOutput>;
 }

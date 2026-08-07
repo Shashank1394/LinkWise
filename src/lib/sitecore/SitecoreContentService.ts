@@ -1,24 +1,25 @@
 import { AgentApiClient } from "./AgentApiClient";
-import { mapToCandidatePage } from "./PageMapper";
+import { mapToRelevantPage } from "./PageMapper";
 import {
-  CandidatePage,
   CurrentPage,
   LinkOpportunity,
+  RetrievedPage,
 } from "../recommendations/types";
+import { ContentItem } from "./types";
 
 export class SitecoreContentService {
   constructor(private readonly client = new AgentApiClient()) {}
 
-  async searchCandidatePages(siteName: string, query: string) {
+  async searchCandidatePages(siteName: string, query: string): Promise<RetrievedPage[]> {
     const results = await this.client.searchPages(siteName, query);
 
-    return results.map(mapToCandidatePage);
+    return results.map(mapToRelevantPage);
   }
 
   async getContentTreeCandidates(
     siteName: string,
     language: string,
-  ): Promise<CandidatePage[]> {
+  ): Promise<RetrievedPage[]> {
     const pages = await this.client.getSitePages(siteName, language);
 
     console.info("[LinkWise][ContentService] Loading site pages", {
@@ -75,7 +76,7 @@ export class SitecoreContentService {
           title: title || item.name || eligiblePages[index].title,
           path: item.path,
           description,
-          plainTextContent: content ? htmlToPlainText(content) : undefined,
+          content: content ? htmlToPlainText(content) : undefined,
         },
       ];
     });
@@ -83,32 +84,8 @@ export class SitecoreContentService {
 
   async getPagePlainText(pageId: string, language: string): Promise<string> {
     const pageItem = await this.client.getContentItem(pageId, language);
-    const pageComponents = await this.client.getPageComponents(
-      pageId,
-      language,
-    );
-    const dataSourceFields = await this.getDataSourceRichTextFields(
-      pageComponents.components ?? [],
-    );
-    const dataSourceResults = await Promise.allSettled(
-      [...dataSourceFields.keys()].map((dataSourceId) =>
-        this.client.getContentItem(dataSourceId, language),
-      ),
-    );
-    const dataSources = dataSourceResults.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : [],
-    );
 
-    return [pageItem, ...dataSources]
-      .flatMap((item) =>
-        getRichTextValues(
-          item.fields,
-          dataSourceFields.get(item.itemId) ?? getRichTextFieldNames(),
-        ),
-      )
-      .map(htmlToPlainText)
-      .filter(Boolean)
-      .join("\n\n");
+    return this.getPlainTextContent(pageItem, language);
   }
 
   async insertApprovedLink(
@@ -151,6 +128,41 @@ export class SitecoreContentService {
       currentPage.language,
       currentPage.siteName,
     );
+  }
+
+  private async getPlainTextContent(
+    pageItem: ContentItem,
+    language: string,
+  ): Promise<string> {
+    const pageComponents = await this.client.getPageComponents(
+      pageItem.itemId,
+      language,
+    );
+
+    const dataSourceFields = await this.getDataSourceRichTextFields(
+      pageComponents.components ?? [],
+    );
+
+    const dataSourceResults = await Promise.allSettled(
+      [...dataSourceFields.keys()].map((dataSourceId) =>
+        this.client.getContentItem(dataSourceId, language),
+      ),
+    );
+
+    const dataSources = dataSourceResults.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : [],
+    );
+
+    return [pageItem, ...dataSources]
+      .flatMap((item) =>
+        getRichTextValues(
+          item.fields,
+          dataSourceFields.get(item.itemId) ?? getRichTextFieldNames(),
+        ),
+      )
+      .map(htmlToPlainText)
+      .filter(Boolean)
+      .join("\n\n");
   }
 
   private async findSourceContentItem(
@@ -200,6 +212,20 @@ export class SitecoreContentService {
     }
 
     return undefined;
+  }
+
+  async getPageContent(
+    pageId: string,
+    language: string,
+  ): Promise<RetrievedPage> {
+    const item = await this.client.getContentItem(pageId, language);
+
+    return {
+      id: item.itemId,
+      title: item.name,
+      path: item.path,
+      plainTextContent: await this.getPlainTextContent(item, language),
+    };
   }
 
   async isSourceTextLinkable(

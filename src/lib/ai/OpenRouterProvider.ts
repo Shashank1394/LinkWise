@@ -2,7 +2,10 @@ import OpenAI from "openai";
 import { ChatCompletionTool } from "openai/resources/chat/completions";
 
 import { AiProvider } from "./provider";
-import { ContentSearchQueriesSchema, LinkOpportunitiesSchema } from "./schemas";
+import {
+  ContentSearchQueriesSchema,
+  LinkOpportunitiesSchema,
+} from "./schemas";
 
 import {
   CurrentPage,
@@ -42,11 +45,16 @@ export class OpenRouterProvider implements AiProvider {
     });
     const toolCall = response.choices[0]?.message?.tool_calls?.[0];
 
-    if (toolCall?.type !== "function" || toolCall.function.name !== "search_site_pages") {
+    if (
+      toolCall?.type !== "function" ||
+      toolCall.function.name !== "search_site_pages"
+    ) {
       throw new Error("The retrieval agent did not request a Sitecore search.");
     }
 
-    const payload = JSON.parse(toolCall.function.arguments) as { queries?: unknown };
+    const payload = JSON.parse(toolCall.function.arguments) as {
+      queries?: unknown;
+    };
     return ContentSearchQueriesSchema.parse(payload.queries);
   }
 
@@ -68,7 +76,7 @@ export class OpenRouterProvider implements AiProvider {
                 language: request.currentPage.language,
                 content: request.currentPage.plainTextContent ?? "",
               },
-              candidatePages: request.candidatePages.map((page) => ({
+              candidatePages: request.retrievedPages.map((page) => ({
                 id: page.id,
                 title: page.title,
                 path: page.path,
@@ -90,7 +98,9 @@ export class OpenRouterProvider implements AiProvider {
         toolCall?.type !== "function" ||
         toolCall.function.name !== "submit_link_recommendations"
       ) {
-        throw new Error("The recommendation agent did not submit recommendations.");
+        throw new Error(
+          "The recommendation agent did not submit recommendations.",
+        );
       }
 
       const payload = JSON.parse(toolCall.function.arguments) as {
@@ -108,7 +118,6 @@ export class OpenRouterProvider implements AiProvider {
       throw new Error("Unknown OpenRouter error.");
     }
   }
-
 }
 
 const searchSitePagesTool: ChatCompletionTool = {
@@ -116,7 +125,7 @@ const searchSitePagesTool: ChatCompletionTool = {
   function: {
     name: "search_site_pages",
     description:
-      "Search the permitted Sitecore content tree for pages related to the current page.",
+      "Search for relevant pages on the Sitecore site using content queries.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -126,7 +135,9 @@ const searchSitePagesTool: ChatCompletionTool = {
           type: "array",
           minItems: 1,
           maxItems: 8,
-          items: { type: "string", minLength: 2, maxLength: 120 },
+          items: {
+            type: "string",
+          },
         },
       },
     },

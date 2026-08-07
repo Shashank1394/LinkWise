@@ -38,15 +38,15 @@ export class LinkAnalysisService {
 
     const agent = new LinkRecommendationAgent(this.aiProvider);
 
-    const { candidatePages, opportunities } = await agent.run(pageToAnalyze);
+    const { relevantPages, opportunities } = await agent.run(pageToAnalyze);
 
     console.info("[LinkWise][LinkAnalysis] Agent completed", {
-      candidatePages: candidatePages.length,
+      candidatePages: relevantPages.length,
       opportunities: opportunities.length,
     });
 
     const candidatesById = new Map(
-      candidatePages.map((page) => [page.id, page]),
+      relevantPages.map((page) => [page.id, page]),
     );
 
     const approvedOpportunities = opportunities.flatMap((opportunity) => {

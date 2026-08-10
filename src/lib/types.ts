@@ -30,29 +30,12 @@ export interface LinkOpportunity {
   seoBenefit: string;
 }
 
-export interface LinkAnalysisRequest {
-  currentPage: CurrentPage;
-  retrievedPages: RetrievedPage[];
-}
-
-export interface LinkAnalysisResponse {
-  opportunities: LinkOpportunity[];
-}
-
-export interface BatchReviewResult {
-  pagesToRead: Array<{
-    id: string;
-    reason: string;
-  }>;
-
-  continueSearching: boolean;
-
-  confidence: number;
-
-  reasoning: string;
-}
-
-export interface BatchReviewRequest {
-  currentPage: CurrentPage;
-  pages: RelevantPage[];
+/**
+ * Provides lightweight page summaries for the agent to discover link targets.
+ */
+export interface RelevantPageProvider {
+  getRelevantPages(
+    currentPage: CurrentPage,
+    searchQueries: string[],
+  ): Promise<RelevantPage[]>;
 }

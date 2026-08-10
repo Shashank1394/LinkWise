@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import * as fc from "fast-check";
 import { SitecoreRelevantPageProvider } from "./SitecoreRelevantPageProvider";
-import { CurrentPage, RelevantPage } from "../recommendations/types";
+import { CurrentPage, RelevantPage } from "../types";
 
 /**
  * Preservation property tests for SitecoreRelevantPageProvider.

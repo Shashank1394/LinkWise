@@ -12,7 +12,7 @@ import { Icon } from "@/components/ui/icon";
 import { mdiLinkVariant } from "@mdi/js";
 
 import SuggestionCard from "./SuggestionCard";
-import { LinkOpportunity } from "../../lib/recommendations/types";
+import { LinkOpportunity } from "../../lib/types";
 
 interface SuggestedLinksCardProps {
   opportunities: LinkOpportunity[];

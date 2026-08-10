@@ -39,6 +39,7 @@ export class AgentApiClient {
 
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...options,
+      signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",

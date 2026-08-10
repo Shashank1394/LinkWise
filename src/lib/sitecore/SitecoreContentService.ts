@@ -1,10 +1,6 @@
 import { AgentApiClient } from "./AgentApiClient";
 import { mapToRelevantPage } from "./PageMapper";
-import {
-  CurrentPage,
-  LinkOpportunity,
-  RetrievedPage,
-} from "../recommendations/types";
+import { CurrentPage, LinkOpportunity, RetrievedPage } from "../types";
 import { ContentItem } from "./types";
 
 export class SitecoreContentService {

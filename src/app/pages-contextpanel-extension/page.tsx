@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CurrentPageCard } from "@/src/components/current-page/CurrentPageCard";
 import SuggestedLinksCard from "@/src/components/suggestions/SuggestedLinksCard";
 import { useCurrentPage } from "@/src/utils/hooks/useCurrentPage";
-import type { LinkOpportunity } from "@/src/lib/recommendations/types";
+import type { LinkOpportunity } from "@/src/lib/types";
 
 interface LinkOpportunitiesResponse {
   success: boolean;

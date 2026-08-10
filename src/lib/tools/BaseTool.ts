@@ -1,19 +1,16 @@
-import { Tool } from "../Tool";
+import { Tool } from "./Tool";
 
-export abstract class BaseTool<
-  TInput = unknown,
-  TOutput = unknown,
-> implements Tool<TInput, TOutput> {
+export abstract class BaseTool<TInput = unknown, TOutput = unknown>
+  implements Tool<TInput, TOutput>
+{
   abstract readonly name: string;
   abstract readonly description: string;
+  abstract readonly parameters?: Record<string, unknown>;
 
   async execute(input: TInput): Promise<TOutput> {
     const startedAt = Date.now();
 
-    console.info("[LinkWise][Tool] Executing", {
-      tool: this.name,
-      input,
-    });
+    console.info("[LinkWise][Tool] Executing", { tool: this.name, input });
 
     try {
       const result = await this.executeInternal(input);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createLinkAnalysisService } from "../../../../lib/recommendations/factory";
+import { createLinkAnalysisService } from "../../../../lib/service";
 
 const CurrentPageSchema = z.object({
   id: z.string().trim().min(1).max(200),

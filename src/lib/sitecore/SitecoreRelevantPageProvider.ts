@@ -1,5 +1,4 @@
-import { RelevantPageProvider } from "../../lib/recommendations/RelevantPageProvider";
-import { RelevantPage, CurrentPage } from "../recommendations/types";
+import { RelevantPageProvider, RelevantPage, CurrentPage } from "../types";
 import { SitecoreContentService } from "./SitecoreContentService";
 
 const MAX_SEARCH_TERMS = 20;

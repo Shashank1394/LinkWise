@@ -1,4 +1,4 @@
-import { RetrievedPage } from "../recommendations/types";
+import { RetrievedPage } from "../types";
 import { PageSearchResult } from "./types";
 
 export function mapToRelevantPage(page: PageSearchResult): RetrievedPage {

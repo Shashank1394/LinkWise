@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { LinkOpportunity } from "../../lib/recommendations/types";
+import { LinkOpportunity } from "../../lib/types";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

@@ -8,7 +8,7 @@ const MAX_ITERATIONS = 6;
 
 const client = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
+  baseURL: process.env.OPENROUTER_BASE_URL,
   timeout: 60_000,
   maxRetries: 2,
 });

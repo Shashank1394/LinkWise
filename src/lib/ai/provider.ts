@@ -5,7 +5,7 @@ import {
 } from "../recommendations/types";
 
 export interface AiProvider {
-  requestCandidateSearch(currentPage: CurrentPage): Promise<string[]>;
+  requestRelevantPageSearch(currentPage: CurrentPage): Promise<string[]>;
 
   submitLinkRecommendations(
     request: LinkAnalysisRequest,

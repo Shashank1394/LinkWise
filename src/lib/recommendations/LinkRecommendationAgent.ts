@@ -4,7 +4,7 @@ import { ToolRegistry } from "../agent/ToolRegistry";
 import { FindRelevantPagesTool } from "../agent/tools/FindRelevantPagesTool";
 import { RelevantPage, CurrentPage, LinkOpportunity } from "./types";
 
-const MAX_CANDIDATES = 100;
+const MAX_RELEVANT_PAGES = 100;
 const BATCH_SIZE = 10;
 const TARGET_RECOMMENDATIONS = 8;
 
@@ -25,18 +25,30 @@ export class LinkRecommendationAgent {
       language: currentPage.language,
     });
 
-    // Generate search queries
+    // Step 1: Ask LLM to generate search queries based on page content
 
-    const searchQueries =
-      await this.aiProvider.requestCandidateSearch(currentPage);
-
-    console.info("[LinkWise][Agent] Search plan generated", {
+    console.info("[LinkWise][Agent] Step 1 — Asking LLM to generate search queries", {
       runId,
-      queryCount: searchQueries.length,
-      searchQueries,
+      inputToLLM: {
+        pageTitle: currentPage.title,
+        pagePath: currentPage.path,
+        contentLength: (currentPage.plainTextContent ?? "").length,
+      },
     });
 
-    // Get the candidate retrieval tool
+    const searchQueries =
+      await this.aiProvider.requestRelevantPageSearch(currentPage);
+
+    console.info("[LinkWise][Agent] Step 1 — LLM returned search queries", {
+      runId,
+      llmOutput: {
+        toolCalled: "search_site_pages",
+        queryCount: searchQueries.length,
+        queries: searchQueries,
+      },
+    });
+
+    // Step 2: Execute find_relevant_pages tool with the LLM-generated queries
 
     const tool =
       this.toolRegistry.get<FindRelevantPagesTool>("find_relevant_pages");
@@ -45,33 +57,37 @@ export class LinkRecommendationAgent {
       throw new Error('Tool "find_relevant_pages" is not registered.');
     }
 
-    console.info("[LinkWise][Agent] Executing tool", {
+    console.info("[LinkWise][Agent] Step 2 — Executing tool: find_relevant_pages", {
       runId,
-      tool: tool.name,
+      toolInput: {
+        pageId: currentPage.id,
+        siteName: currentPage.siteName,
+        searchQueries,
+      },
     });
 
-    // Retrieve candidate pages
-
-    const retrievedCandidates = await tool.execute({
+    const retrievedPages = await tool.execute({
       currentPage,
       searchQueries,
     });
 
-    console.info("[LinkWise][Agent] Tool execution completed", {
+    console.info("[LinkWise][Agent] Step 2 — Tool returned relevant pages", {
       runId,
-      tool: tool.name,
-      candidatesReturned: retrievedCandidates.length,
+      toolOutput: {
+        pagesReturned: retrievedPages.length,
+        pageIds: retrievedPages.slice(0, 20).map((p) => p.id),
+      },
     });
 
-    const candidatePages = retrievedCandidates.slice(0, MAX_CANDIDATES);
+    const relevantPages = retrievedPages.slice(0, MAX_RELEVANT_PAGES);
 
-    console.info("[LinkWise][Agent] Candidate retrieval completed", {
+    console.info("[LinkWise][Agent] Relevant page retrieval completed", {
       runId,
-      candidatesRetrieved: retrievedCandidates.length,
-      candidatesProvidedToAgent: candidatePages.length,
+      pagesRetrieved: retrievedPages.length,
+      pagesProvidedToAgent: relevantPages.length,
     });
 
-    if (candidatePages.length === 0) {
+    if (relevantPages.length === 0) {
       return {
         runId,
         relevantPages: [],
@@ -79,20 +95,25 @@ export class LinkRecommendationAgent {
       };
     }
 
-    // Process candidates in batches
+    // Step 3: Ask LLM to analyze relevant pages in batches and produce link recommendations
 
-    const batches = this.createBatches(candidatePages);
+    const batches = this.createBatches(relevantPages);
 
     const recommendations = new Map<string, LinkOpportunity>();
     let processedBatches = 0;
 
     for (const [index, batch] of batches.entries()) {
       processedBatches++;
-      console.info("[LinkWise][Agent] Processing batch", {
+
+      console.info("[LinkWise][Agent] Step 3 — Sending batch to LLM for recommendation", {
         runId,
         batch: index + 1,
         totalBatches: batches.length,
-        candidates: batch.length,
+        inputToLLM: {
+          currentPageTitle: currentPage.title,
+          relevantPageCount: batch.length,
+          relevantPageIds: batch.map((p) => p.id),
+        },
       });
 
       const batchRecommendations =
@@ -101,10 +122,18 @@ export class LinkRecommendationAgent {
           retrievedPages: batch,
         });
 
-      console.info("[LinkWise][Agent] Batch completed", {
+      console.info("[LinkWise][Agent] Step 3 — LLM returned recommendations", {
         runId,
         batch: index + 1,
-        recommendations: batchRecommendations.length,
+        llmOutput: {
+          toolCalled: "submit_link_recommendations",
+          recommendationsReturned: batchRecommendations.length,
+          recommendations: batchRecommendations.map((r) => ({
+            sourceText: r.sourceText.slice(0, 60),
+            destinationId: r.destination.id,
+            score: r.score,
+          })),
+        },
       });
 
       for (const recommendation of batchRecommendations) {
@@ -139,7 +168,7 @@ export class LinkRecommendationAgent {
 
     return {
       runId,
-      relevantPages: candidatePages,
+      relevantPages,
       opportunities,
     };
   }

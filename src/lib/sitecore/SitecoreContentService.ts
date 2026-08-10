@@ -10,13 +10,13 @@ import { ContentItem } from "./types";
 export class SitecoreContentService {
   constructor(private readonly client = new AgentApiClient()) {}
 
-  async searchCandidatePages(siteName: string, query: string): Promise<RetrievedPage[]> {
+  async searchRelevantPages(siteName: string, query: string): Promise<RetrievedPage[]> {
     const results = await this.client.searchPages(siteName, query);
 
     return results.map(mapToRelevantPage);
   }
 
-  async getContentTreeCandidates(
+  async getContentTreeRelevantPages(
     siteName: string,
     language: string,
   ): Promise<RetrievedPage[]> {
@@ -36,7 +36,7 @@ export class SitecoreContentService {
       }))
       .slice(0, 60);
 
-    console.info("[LinkWise][ContentService] Candidate pages loaded", {
+    console.info("[LinkWise][ContentService] Relevant pages loaded", {
       eligiblePages: eligiblePages.length,
     });
 

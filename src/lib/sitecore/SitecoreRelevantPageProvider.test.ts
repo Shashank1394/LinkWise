@@ -6,7 +6,7 @@ import { CurrentPage, RelevantPage } from "../recommendations/types";
 /**
  * Preservation property tests for SitecoreRelevantPageProvider.
  * Tests that:
- * - searchCandidatePages and getContentTreeCandidates return arrays of pages with id, title, and path
+ * - searchRelevantPages and getContentTreeRelevantPages return arrays of pages with id, title, and path
  * - The provider excludes the current page from results
  * - Results are deduplicated
  *
@@ -50,10 +50,9 @@ describe("Preservation: SitecoreRelevantPageProvider", () => {
             { id: currentPage.id, title: "Current Page", path: currentPage.path },
           ];
 
-          // Create a mock content service and pass it directly
           const mockContentService = {
-            searchCandidatePages: vi.fn().mockResolvedValue(pagesWithCurrent),
-            getContentTreeCandidates: vi.fn().mockResolvedValue([]),
+            searchRelevantPages: vi.fn().mockResolvedValue(pagesWithCurrent),
+            getContentTreeRelevantPages: vi.fn().mockResolvedValue([]),
           } as any;
 
           const provider = new SitecoreRelevantPageProvider(mockContentService);
@@ -85,8 +84,8 @@ describe("Preservation: SitecoreRelevantPageProvider", () => {
           ];
 
           const mockContentService = {
-            searchCandidatePages: vi.fn().mockResolvedValue(duplicatedResults),
-            getContentTreeCandidates: vi.fn().mockResolvedValue([]),
+            searchRelevantPages: vi.fn().mockResolvedValue(duplicatedResults),
+            getContentTreeRelevantPages: vi.fn().mockResolvedValue([]),
           } as any;
 
           const provider = new SitecoreRelevantPageProvider(mockContentService);
@@ -109,8 +108,8 @@ describe("Preservation: SitecoreRelevantPageProvider", () => {
         fc.array(relevantPageArb, { minLength: 1, maxLength: 10 }),
         async (currentPage, searchQueries, mockPages) => {
           const mockContentService = {
-            searchCandidatePages: vi.fn().mockResolvedValue(mockPages),
-            getContentTreeCandidates: vi.fn().mockResolvedValue([]),
+            searchRelevantPages: vi.fn().mockResolvedValue(mockPages),
+            getContentTreeRelevantPages: vi.fn().mockResolvedValue([]),
           } as any;
 
           const provider = new SitecoreRelevantPageProvider(mockContentService);

@@ -31,7 +31,7 @@ export class SitecoreRelevantPageProvider implements RelevantPageProvider {
 
     const searchResults = await Promise.allSettled(
       searchTerms.map((query) =>
-        this.contentService.searchCandidatePages(currentPage.siteName, query),
+        this.contentService.searchRelevantPages(currentPage.siteName, query),
       ),
     );
 
@@ -71,7 +71,7 @@ export class SitecoreRelevantPageProvider implements RelevantPageProvider {
         "[LinkWise][RelevantPageProvider] Falling back to content tree",
       );
 
-      const treePages = await this.contentService.getContentTreeCandidates(
+      const treePages = await this.contentService.getContentTreeRelevantPages(
         currentPage.siteName,
         currentPage.language,
       );

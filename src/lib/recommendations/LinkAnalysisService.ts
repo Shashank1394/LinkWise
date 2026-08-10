@@ -41,16 +41,16 @@ export class LinkAnalysisService {
     const { relevantPages, opportunities } = await agent.run(pageToAnalyze);
 
     console.info("[LinkWise][LinkAnalysis] Agent completed", {
-      candidatePages: relevantPages.length,
+      relevantPages: relevantPages.length,
       opportunities: opportunities.length,
     });
 
-    const candidatesById = new Map(
+    const relevantPagesById = new Map(
       relevantPages.map((page) => [page.id, page]),
     );
 
     const approvedOpportunities = opportunities.flatMap((opportunity) => {
-      const destination = candidatesById.get(opportunity.destination.id);
+      const destination = relevantPagesById.get(opportunity.destination.id);
 
       if (!destination) {
         console.warn("[LinkWise][LinkAnalysis] Destination page not found", {

@@ -6,7 +6,7 @@ import { SubmitLinkRecommendationsTool } from "./SubmitLinkRecommendationsTool";
 import { SitecoreRelevantPageProvider } from "../sitecore/SitecoreRelevantPageProvider";
 import { SitecoreContentService } from "../sitecore/SitecoreContentService";
 
-export type { Tool } from "./Tool";
+export type { Tool, ToolContext } from "./Tool";
 export { toOpenAiTool } from "./Tool";
 export { ToolRegistry } from "./ToolRegistry";
 export { FindRelevantPagesTool } from "./FindRelevantPagesTool";

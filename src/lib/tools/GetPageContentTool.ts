@@ -1,5 +1,6 @@
 import { BaseTool } from "./BaseTool";
-import { RetrievedPage } from "../types";
+import { ToolContext } from "./Tool";
+import { CurrentPage, RetrievedPage } from "../types";
 import { SitecoreContentService } from "../sitecore/SitecoreContentService";
 
 export interface GetPageContentToolInput {
@@ -33,6 +34,14 @@ export class GetPageContentTool extends BaseTool<
 
   constructor(private readonly contentService: SitecoreContentService) {
     super();
+  }
+
+  buildInput(args: Record<string, unknown>, context: ToolContext): GetPageContentToolInput {
+    const currentPage = context.currentPage as CurrentPage;
+    return {
+      pageIds: args.pageIds as string[],
+      language: currentPage.language,
+    };
   }
 
   protected async executeInternal(

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
-import { createToolRegistry, toOpenAiTool, ToolRegistry } from "./tools";
+import { createToolRegistry, toOpenAiTool, ToolRegistry, ToolContext } from "./tools";
 import { RelevantPage, CurrentPage, LinkOpportunity } from "./types";
 
 const MAX_ITERATIONS = 6;
@@ -48,7 +48,7 @@ export class LinkRecommendationAgent {
   async run(currentPage: CurrentPage): Promise<AgentResult> {
     const runId = crypto.randomUUID();
     const startedAt = Date.now();
-    const collectedPages: RelevantPage[] = [];
+    const allResults: unknown[] = [];
 
     console.info("[LinkWise][Agent] Run started", {
       runId,
@@ -57,6 +57,7 @@ export class LinkRecommendationAgent {
       language: currentPage.language,
     });
 
+    // Build tool definitions dynamically from registry
     const tools = this.toolRegistry
       .getAll()
       .filter((t) => t.parameters)
@@ -66,6 +67,9 @@ export class LinkRecommendationAgent {
       runId,
       tools: tools.map((t) => (t as any).function.name),
     });
+
+    // Context passed to every tool's buildInput
+    const context: ToolContext = { currentPage };
 
     const messages: ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
@@ -84,7 +88,7 @@ export class LinkRecommendationAgent {
       },
     ];
 
-    let opportunities: LinkOpportunity[] = [];
+    let terminalResult: unknown = null;
     let iteration = 0;
 
     while (iteration < MAX_ITERATIONS) {
@@ -110,12 +114,15 @@ export class LinkRecommendationAgent {
         usage: response.usage,
       });
 
+      // LLM stopped without calling a tool — end the loop
       if (choice.finish_reason === "stop" || !assistantMessage.tool_calls?.length) {
         console.info("[LinkWise][Agent] LLM finished (no tool call)", { runId, iteration });
         break;
       }
 
       messages.push(assistantMessage as ChatCompletionMessageParam);
+
+      let shouldBreak = false;
 
       for (const toolCall of assistantMessage.tool_calls) {
         const toolName = (toolCall as any).function.name as string;
@@ -145,27 +152,34 @@ export class LinkRecommendationAgent {
         }
 
         try {
-          const input = this.buildInput(toolName, parsed, currentPage);
+          // Each tool builds its own input from the LLM args + context
+          const input = tool.buildInput(parsed, context);
           const result = await tool.execute(input);
+
+          // Log result summary
+          const summary = Array.isArray(result)
+            ? { items: result.length }
+            : { type: typeof result };
 
           console.info("[LinkWise][Agent] Tool result", {
             runId,
             iteration,
             tool: toolName,
-            summary: this.summarize(toolName, result),
+            summary,
           });
 
-          if (toolName === "submit_link_recommendations") {
-            opportunities = result as LinkOpportunity[];
-            messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ success: true, count: opportunities.length }) });
-            iteration = MAX_ITERATIONS; // exit loop
+          // Collect results for the caller
+          allResults.push({ tool: toolName, result });
+
+          // If this is a terminal tool, capture result and stop
+          if (tool.isTerminal) {
+            terminalResult = result;
+            messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ success: true }) });
+            shouldBreak = true;
             break;
           }
 
-          if (toolName === "find_relevant_pages" && Array.isArray(result)) {
-            collectedPages.push(...(result as RelevantPage[]));
-          }
-
+          // Feed result back to LLM
           const json = JSON.stringify(result);
           messages.push({
             role: "tool",
@@ -180,39 +194,32 @@ export class LinkRecommendationAgent {
           messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ error: msg }) });
         }
       }
+
+      if (shouldBreak) break;
     }
+
+    // Extract opportunities from terminal result
+    const opportunities = Array.isArray(terminalResult)
+      ? (terminalResult as LinkOpportunity[])
+      : [];
+
+    // Collect all RelevantPage results from any tool that returned page arrays
+    const relevantPages = allResults.flatMap((entry: any) => {
+      if (entry.tool !== "submit_link_recommendations" && Array.isArray(entry.result)) {
+        return entry.result.filter((item: any) => item && typeof item.id === "string" && typeof item.path === "string");
+      }
+      return [];
+    }) as RelevantPage[];
 
     console.info("[LinkWise][Agent] Run completed", {
       runId,
       iterations: iteration,
-      pages: collectedPages.length,
+      pages: relevantPages.length,
       opportunities: opportunities.length,
       durationMs: Date.now() - startedAt,
     });
 
-    return { runId, relevantPages: collectedPages, opportunities };
-  }
-
-  private buildInput(toolName: string, args: Record<string, unknown>, currentPage: CurrentPage): unknown {
-    switch (toolName) {
-      case "find_relevant_pages":
-        return { currentPage, searchQueries: args.queries };
-      case "get_page_content":
-        return { pageIds: args.pageIds, language: currentPage.language };
-      case "submit_link_recommendations":
-        return { opportunities: args.opportunities };
-      default:
-        return args;
-    }
-  }
-
-  private summarize(toolName: string, result: unknown): Record<string, unknown> {
-    if (Array.isArray(result)) {
-      if (toolName === "find_relevant_pages") return { pagesFound: result.length };
-      if (toolName === "get_page_content") return { pagesRetrieved: result.length };
-      if (toolName === "submit_link_recommendations") return { submitted: result.length };
-    }
-    return { type: typeof result };
+    return { runId, relevantPages, opportunities };
   }
 }
 

@@ -13,7 +13,12 @@ interface LinkOpportunitiesResponse {
 }
 
 export default function PagesContextPanel() {
-  const { page, site, loading: pageLoading, error: pageError } = useCurrentPage();
+  const {
+    page,
+    site,
+    loading: pageLoading,
+    error: pageError,
+  } = useCurrentPage();
   const [opportunities, setOpportunities] = useState<LinkOpportunity[]>([]);
   const [analysisError, setAnalysisError] = useState<string>();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -31,7 +36,14 @@ export default function PagesContextPanel() {
       language: page.language,
       siteName: site.name,
     };
-  }, [page?.displayName, page?.id, page?.language, page?.name, page?.path, site?.name]);
+  }, [
+    page?.displayName,
+    page?.id,
+    page?.language,
+    page?.name,
+    page?.path,
+    site?.name,
+  ]);
 
   const approveOpportunity = useCallback(
     async (opportunity: LinkOpportunity) => {
@@ -88,7 +100,9 @@ export default function PagesContextPanel() {
         }
 
         setAnalysisError(
-          error instanceof Error ? error.message : "Unable to analyze this page.",
+          error instanceof Error
+            ? error.message
+            : "Unable to analyze this page.",
         );
       } finally {
         if (!controller.signal.aborted) {
@@ -103,7 +117,7 @@ export default function PagesContextPanel() {
   }, [analysisRequest]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <CurrentPageCard page={page} loading={pageLoading} error={pageError} />
 
       <SuggestedLinksCard

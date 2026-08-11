@@ -1,4 +1,5 @@
 import { BaseTool } from "./BaseTool";
+import { ToolContext } from "./Tool";
 import { CurrentPage, RelevantPage, RelevantPageProvider } from "../types";
 
 export interface FindRelevantPagesToolInput {
@@ -32,6 +33,13 @@ export class FindRelevantPagesTool extends BaseTool<
 
   constructor(private readonly pageProvider: RelevantPageProvider) {
     super();
+  }
+
+  buildInput(args: Record<string, unknown>, context: ToolContext): FindRelevantPagesToolInput {
+    return {
+      currentPage: context.currentPage as CurrentPage,
+      searchQueries: args.queries as string[],
+    };
   }
 
   protected async executeInternal(

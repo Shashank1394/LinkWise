@@ -24,58 +24,28 @@ export class SitecoreContentService {
       totalPages: pages.length,
     });
 
-    const eligiblePages = pages
-      .map((page) => ({
-        id: page.id,
-        title: page.path.split("/").filter(Boolean).at(-1) ?? page.path,
-        path: page.path,
-      }))
-      .slice(0, 60);
+    // Take up to 60 pages from the site tree
+    const eligiblePages = pages.slice(0, 60);
 
-    console.info("[LinkWise][ContentService] Relevant pages loaded", {
+    console.info("[LinkWise][ContentService] Fetching page content dynamically", {
       eligiblePages: eligiblePages.length,
     });
 
+    // Fetch full content for each page using getPageContent (component-aware)
     const results = await Promise.allSettled(
-      eligiblePages.map((page) =>
-        this.client.getContentItem(page.id, language),
-      ),
+      eligiblePages.map((page) => this.getPageContent(page.id, language)),
     );
 
-    return results.flatMap((result, index) => {
-      if (result.status !== "fulfilled") {
-        return [];
-      }
+    const retrievedPages = results.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : [],
+    );
 
-      const item = result.value;
-      const fields = item.fields ?? {};
-      const title = getStringField(fields, [
-        "Title",
-        "Page Title",
-        "NavigationTitle",
-      ]);
-      const description = getStringField(fields, [
-        "Description",
-        "Summary",
-        "Teaser",
-      ]);
-      const content = getStringField(fields, [
-        "Content",
-        "Text",
-        "Body",
-        "MainContent",
-      ]);
-
-      return [
-        {
-          id: item.itemId,
-          title: title || item.name || eligiblePages[index].title,
-          path: item.path,
-          description,
-          content: content ? htmlToPlainText(content) : undefined,
-        },
-      ];
+    console.info("[LinkWise][ContentService] Content tree pages loaded", {
+      requested: eligiblePages.length,
+      retrieved: retrievedPages.length,
     });
+
+    return retrievedPages;
   }
 
   async getPagePlainText(pageId: string, language: string): Promise<string> {
@@ -327,20 +297,6 @@ function getRichTextFieldNames(): string[] {
     .filter(Boolean);
 }
 
-function getStringField(
-  fields: Record<string, unknown>,
-  names: string[],
-): string | undefined {
-  for (const name of names) {
-    const value = fields[name];
-
-    if (typeof value === "string" && value.trim()) {
-      return value;
-    }
-  }
-
-  return undefined;
-}
 
 function createSitecoreLink(itemId: string, anchorText: string): string {
   const href = `~/link.aspx?_id=${encodeURIComponent(itemId)}&_z=z`;

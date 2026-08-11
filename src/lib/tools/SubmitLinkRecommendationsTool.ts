@@ -1,4 +1,5 @@
 import { BaseTool } from "./BaseTool";
+import { ToolContext } from "./Tool";
 import { LinkOpportunity } from "../types";
 
 export interface SubmitLinkRecommendationsToolInput {
@@ -14,6 +15,7 @@ export class SubmitLinkRecommendationsTool extends BaseTool<
   LinkOpportunity[]
 > {
   readonly name = "submit_link_recommendations";
+  readonly isTerminal = true;
 
   readonly description =
     "Submit your final internal-link recommendations. Call this once you have analyzed the relevant pages and determined which links to suggest. Provide up to 8 opportunities, or an empty array if none are suitable.";
@@ -51,6 +53,10 @@ export class SubmitLinkRecommendationsTool extends BaseTool<
       },
     },
   };
+
+  buildInput(args: Record<string, unknown>, _context: ToolContext): SubmitLinkRecommendationsToolInput {
+    return { opportunities: args.opportunities as LinkOpportunity[] };
+  }
 
   protected async executeInternal(
     input: SubmitLinkRecommendationsToolInput,

@@ -29,10 +29,14 @@ export default function SuggestionCard({
   const [approved, setApproved] = useState(false);
   const [approvalError, setApprovalError] = useState<string>();
 
+  const displayScore = opportunity.score <= 1
+    ? Math.round(opportunity.score * 100)
+    : Math.round(opportunity.score);
+
   const badgeColor =
-    opportunity.score >= 95
+    displayScore >= 95
       ? "success"
-      : opportunity.score >= 80
+      : displayScore >= 80
         ? "primary"
         : "warning";
 
@@ -80,7 +84,7 @@ export default function SuggestionCard({
               </h3>
 
               <Badge variant="bold" colorScheme={badgeColor}>
-                {opportunity.score}%
+                {displayScore}%
               </Badge>
             </div>
 

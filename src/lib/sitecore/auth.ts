@@ -49,7 +49,10 @@ export async function getAccessToken(): Promise<string> {
 
   const token: JwtResponse = await response.json();
 
-  console.log("JWT Token:", token);
+  console.info("[LinkWise][Auth] Token acquired", {
+    expiresIn: token.expires_in,
+    tokenType: token.token_type,
+  });
 
   cachedToken = token.access_token;
 

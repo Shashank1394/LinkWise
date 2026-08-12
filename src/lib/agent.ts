@@ -104,7 +104,18 @@ export class LinkRecommendationAgent {
         tools,
       });
 
-      const choice = response.choices[0];
+      const choice = response.choices?.[0];
+
+      if (!choice || !choice.message) {
+        console.error("[LinkWise][Agent] Empty response from LLM", {
+          runId,
+          iteration,
+          choices: response.choices?.length ?? 0,
+          raw: JSON.stringify(response).slice(0, 500),
+        });
+        break;
+      }
+
       const assistantMessage = choice.message;
 
       console.info("[LinkWise][Agent] LLM responded", {

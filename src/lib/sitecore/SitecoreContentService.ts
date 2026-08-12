@@ -24,21 +24,36 @@ export class SitecoreContentService {
       totalPages: pages.length,
     });
 
-    // Take up to 60 pages from the site tree
-    const eligiblePages = pages.slice(0, 60);
+    // Take up to 100 pages from the site tree
+    const eligiblePages = pages.slice(0, 100);
 
     console.info("[LinkWise][ContentService] Fetching page content dynamically", {
       eligiblePages: eligiblePages.length,
     });
 
-    // Fetch full content for each page using getPageContent (component-aware)
-    const results = await Promise.allSettled(
-      eligiblePages.map((page) => this.getPageContent(page.id, language)),
-    );
+    // Fetch content in batches of 10
+    const BATCH_SIZE = 10;
+    const retrievedPages: RetrievedPage[] = [];
 
-    const retrievedPages = results.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : [],
-    );
+    for (let i = 0; i < eligiblePages.length; i += BATCH_SIZE) {
+      const batch = eligiblePages.slice(i, i + BATCH_SIZE);
+
+      console.info("[LinkWise][ContentService] Processing batch", {
+        batch: Math.floor(i / BATCH_SIZE) + 1,
+        totalBatches: Math.ceil(eligiblePages.length / BATCH_SIZE),
+        pagesInBatch: batch.length,
+      });
+
+      const results = await Promise.allSettled(
+        batch.map((page) => this.getPageContent(page.id, language)),
+      );
+
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          retrievedPages.push(result.value);
+        }
+      }
+    }
 
     console.info("[LinkWise][ContentService] Content tree pages loaded", {
       requested: eligiblePages.length,

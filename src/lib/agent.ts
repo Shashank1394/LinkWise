@@ -4,7 +4,8 @@ import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { createToolRegistry, toOpenAiTool, ToolRegistry, ToolContext } from "./tools";
 import { RelevantPage, CurrentPage, LinkOpportunity } from "./types";
 
-const MAX_ITERATIONS = 6;
+const MAX_ITERATIONS = 10;
+const MAX_RECOMMENDATIONS = 8;
 
 const client = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -173,8 +174,20 @@ export class LinkRecommendationAgent {
 
           // If this is a terminal tool, capture result and stop
           if (tool.isTerminal) {
-            terminalResult = result;
-            messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ success: true }) });
+            terminalResult = Array.isArray(result)
+              ? (result as LinkOpportunity[]).slice(0, MAX_RECOMMENDATIONS)
+              : result;
+
+            const count = Array.isArray(terminalResult) ? terminalResult.length : 0;
+
+            console.info("[LinkWise][Agent] Terminal tool called — stopping", {
+              runId,
+              iteration,
+              recommendations: count,
+              maxRecommendations: MAX_RECOMMENDATIONS,
+            });
+
+            messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ success: true, count }) });
             shouldBreak = true;
             break;
           }
@@ -198,9 +211,9 @@ export class LinkRecommendationAgent {
       if (shouldBreak) break;
     }
 
-    // Extract opportunities from terminal result
+    // Extract opportunities from terminal result, cap at MAX_RECOMMENDATIONS
     const opportunities = Array.isArray(terminalResult)
-      ? (terminalResult as LinkOpportunity[])
+      ? (terminalResult as LinkOpportunity[]).slice(0, MAX_RECOMMENDATIONS)
       : [];
 
     // Collect all RelevantPage results from any tool that returned page arrays

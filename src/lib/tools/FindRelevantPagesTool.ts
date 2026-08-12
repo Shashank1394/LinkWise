@@ -14,7 +14,7 @@ export class FindRelevantPagesTool extends BaseTool<
   readonly name = "find_relevant_pages";
 
   readonly description =
-    "Search for relevant pages on the Sitecore site using content queries. Returns page summaries (id, title, path, description). Call this to discover pages that could be good link destinations.";
+    "Search for relevant pages on the Sitecore site. Returns pages with id, title, path, and their full content. Review all returned pages to find link opportunities.";
 
   readonly parameters = {
     type: "object",
@@ -61,6 +61,19 @@ export class FindRelevantPagesTool extends BaseTool<
       pageIds: pages.slice(0, 20).map((p) => p.id),
     });
 
-    return pages;
+    // Return full page data — filter out internal data items, let the LLM decide what's relevant
+    const navigablePages = pages.filter(
+      (p) => !p.path.includes("/data/") && !p.path.endsWith("/rich text") && !p.path.endsWith("/content"),
+    );
+
+    console.info("[LinkWise][Tool][FindRelevantPages] Filtered to navigable pages", {
+      total: pages.length,
+      navigable: navigablePages.length,
+    });
+
+    return navigablePages.map((p) => ({
+      ...p,
+      content: (p as any).plainTextContent ?? p.content,
+    }));
   }
 }

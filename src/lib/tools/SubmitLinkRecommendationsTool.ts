@@ -27,7 +27,6 @@ export class SubmitLinkRecommendationsTool extends BaseTool<
     properties: {
       opportunities: {
         type: "array",
-        maxItems: 8,
         items: {
           type: "object",
           additionalProperties: false,
@@ -61,15 +60,26 @@ export class SubmitLinkRecommendationsTool extends BaseTool<
   protected async executeInternal(
     input: SubmitLinkRecommendationsToolInput,
   ): Promise<LinkOpportunity[]> {
+    // Filter out invalid recommendations
+    const valid = input.opportunities.filter((o) => {
+      const words = o.sourceText.trim().split(/\s+/);
+      if (words.length < 3) return false;
+      if (o.destination.path.includes("/data/")) return false;
+      if (o.destination.path.endsWith("/rich text")) return false;
+      return true;
+    });
+
     console.info("[LinkWise][Tool][SubmitRecommendations] Submitted", {
-      count: input.opportunities.length,
-      opportunities: input.opportunities.map((o) => ({
+      received: input.opportunities.length,
+      valid: valid.length,
+      filtered: input.opportunities.length - valid.length,
+      opportunities: valid.map((o) => ({
         sourceText: o.sourceText.slice(0, 60),
         destinationId: o.destination.id,
         score: o.score,
       })),
     });
 
-    return input.opportunities;
+    return valid;
   }
 }

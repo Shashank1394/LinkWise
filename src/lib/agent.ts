@@ -24,9 +24,9 @@ You have access to these tools:
 
 Workflow:
 1. Read the current page content provided below. Identify meaningful multi-word phrases that represent topics or concepts.
-2. Call find_relevant_pages with diverse queries covering ALL topics on the page.
-3. Review every returned page. For each one, check if a meaningful phrase from the current page naturally links to that destination.
-4. Call submit_link_recommendations with every valid opportunity.
+2. Call find_relevant_pages with diverse queries covering the main topics on the page.
+3. Review the returned pages. If the results don't cover all topics mentioned on the current page, call find_relevant_pages again with different queries targeting the uncovered topics.
+4. Once you have explored all relevant topics, call submit_link_recommendations with every valid opportunity.
 
 Rules for sourceText (CRITICAL):
 - sourceText must be a meaningful multi-word phrase (minimum 3 words) from the current page content.
@@ -37,10 +37,8 @@ Rules for sourceText (CRITICAL):
 - Bad examples: "pricing", "valuer", "renovation", "equity".
 
 Rules for destination pages:
-- Only use pages whose path contains /Home/ or /blogs/ — these are actual navigable pages.
-- NEVER link to paths containing /data/ — those are internal data items, not pages.
-- NEVER link to paths ending in /rich text or /content — those are field-level items.
-- The destination title should be a real page title, not a field name.
+- NEVER link to paths ending in /rich text, /content, /text, or /body — those are field-level items.
+- The destination should be an actual page with meaningful content, not a raw data fragment.
 
 Other rules:
 - anchorText must equal sourceText.

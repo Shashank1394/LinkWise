@@ -63,9 +63,12 @@ export class SubmitLinkRecommendationsTool extends BaseTool<
     // Filter out invalid recommendations
     const valid = input.opportunities.filter((o) => {
       const words = o.sourceText.trim().split(/\s+/);
-      if (words.length < 3) return false;
-      if (o.destination.path.includes("/data/")) return false;
-      if (o.destination.path.endsWith("/rich text")) return false;
+      if (words.length < 3) return false; // Must be at least 3 words
+      const lowerPath = o.destination.path.toLowerCase();
+      if (lowerPath.endsWith("/rich text")) return false;
+      if (lowerPath.endsWith("/content")) return false;
+      if (lowerPath.endsWith("/text")) return false;
+      if (lowerPath.endsWith("/body")) return false;
       return true;
     });
 

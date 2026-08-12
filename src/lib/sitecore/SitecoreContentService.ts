@@ -3,13 +3,33 @@ import { mapToRelevantPage } from "./PageMapper";
 import { CurrentPage, LinkOpportunity, RetrievedPage } from "../types";
 import { ContentItem } from "./types";
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
+const searchCache = new Map<string, CacheEntry<RetrievedPage[]>>();
+const contentCache = new Map<string, CacheEntry<RetrievedPage>>();
+
 export class SitecoreContentService {
   constructor(private readonly client = new AgentApiClient()) {}
 
   async searchRelevantPages(siteName: string, query: string): Promise<RetrievedPage[]> {
-    const results = await this.client.searchPages(siteName, query);
+    const cacheKey = `search:${siteName}:${query}`;
+    const cached = searchCache.get(cacheKey);
 
-    return results.map(mapToRelevantPage);
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.data;
+    }
+
+    const results = await this.client.searchPages(siteName, query);
+    const pages = results.map(mapToRelevantPage);
+
+    searchCache.set(cacheKey, { data: pages, expiresAt: Date.now() + CACHE_TTL_MS });
+
+    return pages;
   }
 
   async getContentTreeRelevantPages(
@@ -199,14 +219,25 @@ export class SitecoreContentService {
     pageId: string,
     language: string,
   ): Promise<RetrievedPage> {
+    const cacheKey = `content:${pageId}:${language}`;
+    const cached = contentCache.get(cacheKey);
+
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.data;
+    }
+
     const item = await this.client.getContentItem(pageId, language);
 
-    return {
+    const page: RetrievedPage = {
       id: item.itemId,
       title: item.name,
       path: item.path,
       plainTextContent: await this.getPlainTextContent(item, language),
     };
+
+    contentCache.set(cacheKey, { data: page, expiresAt: Date.now() + CACHE_TTL_MS });
+
+    return page;
   }
 
   async isSourceTextLinkable(

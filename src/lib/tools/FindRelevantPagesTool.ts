@@ -61,31 +61,19 @@ export class FindRelevantPagesTool extends BaseTool<
       pageIds: pages.slice(0, 20).map((p) => p.id),
     });
 
-    // Filter out field-level items — keep actual pages regardless of path structure
-    const navigablePages = pages.filter((p) => {
-      const lowerPath = p.path.toLowerCase();
-      // Exclude items that are clearly field-level data sources (end with field-type names)
-      if (lowerPath.endsWith("/rich text")) return false;
-      if (lowerPath.endsWith("/content")) return false;
-      if (lowerPath.endsWith("/text")) return false;
-      if (lowerPath.endsWith("/body")) return false;
-      // Exclude items under /data/ that don't have a meaningful slug (likely raw data items)
-      if (lowerPath.includes("/data/") && !lowerPath.includes("/data/blog") && !lowerPath.includes("/data/article") && !lowerPath.includes("/data/page")) {
-        // Check if path has a meaningful final segment (more than just a field name)
-        const lastSegment = p.path.split("/").filter(Boolean).at(-1) ?? "";
-        if (lastSegment.length < 5) return false;
-      }
-      return true;
-    });
+    // Only return actual pages (under /Home/) — not datasources, footers, or other content items
+    const pageResults = pages.filter((p) =>
+      p.path.toLowerCase().includes("/home/"),
+    );
 
-    console.info("[LinkWise][Tool][FindRelevantPages] Filtered to navigable pages", {
+    console.info("[LinkWise][Tool][FindRelevantPages] Filtered to pages under /Home/", {
       total: pages.length,
-      navigable: navigablePages.length,
+      pages: pageResults.length,
     });
 
-    return navigablePages.map((p) => ({
-      ...p,
-      content: (p as any).plainTextContent ?? p.content,
+    return pageResults.map((page) => ({
+      ...page,
+      content: (page as any).plainTextContent ?? page.content,
     }));
   }
 }

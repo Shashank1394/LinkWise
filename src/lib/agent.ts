@@ -5,7 +5,7 @@ import { createToolRegistry, toOpenAiTool, ToolRegistry, ToolContext } from "./t
 import { RelevantPage, CurrentPage, LinkOpportunity } from "./types";
 
 const MAX_ITERATIONS = 10;
-const MAX_RECOMMENDATIONS = 8;
+const MAX_RECOMMENDATIONS = 15;
 
 const client = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -23,22 +23,24 @@ You have access to these tools:
 - submit_link_recommendations: Submit ALL link opportunities you found.
 
 Workflow:
-1. Read the current page content provided below. Identify meaningful multi-word phrases that represent topics or concepts.
+1. Read the current page content provided below. Identify ALL meaningful phrases (2+ words) that represent topics, concepts, or actions.
 2. Call find_relevant_pages with diverse queries covering the main topics on the page.
-3. Review the returned pages. If the results don't cover all topics mentioned on the current page, call find_relevant_pages again with different queries targeting the uncovered topics.
-4. Once you have explored all relevant topics, call submit_link_recommendations with every valid opportunity.
+3. Review the returned pages. For EACH page, find phrases from the current page that could naturally link to it. Be thorough — find as many valid links as possible.
+4. If you found fewer than 6 opportunities, call find_relevant_pages again with different queries to discover more pages.
+5. Once you have found all possible opportunities, call submit_link_recommendations with ALL of them.
 
 Rules for sourceText (CRITICAL):
-- sourceText must be a meaningful multi-word phrase (minimum 3 words) from the current page content.
+- sourceText must be a meaningful phrase (minimum 2 words) from the current page content.
 - sourceText must be an EXACT contiguous phrase that appears verbatim in the current page text.
 - NEVER use single words like "pricing", "valuer", "budget", "insurance".
 - NEVER use generic phrases like "click here", "read more", "learn more".
-- Good examples: "lenders mortgage insurance", "building and pest inspection", "loan pre-approval", "household budget before purchasing".
+- Good examples: "lenders mortgage insurance", "building and pest inspection", "loan pre-approval", "interest rates", "household budget before purchasing", "real estate professionals".
 - Bad examples: "pricing", "valuer", "renovation", "equity".
+- Look for EVERY possible linkable phrase — even 2-word phrases are valid if they represent a distinct topic.
 
 Rules for destination pages:
-- NEVER link to paths ending in /rich text, /content, /text, or /body — those are field-level items.
-- The destination should be an actual page with meaningful content, not a raw data fragment.
+- Only link to actual pages (paths containing /Home/) — never to datasources, footers, or other content tree items.
+- The destination path must be a page URL that a user can navigate to on the website.
 
 Other rules:
 - anchorText must equal sourceText.
@@ -79,8 +81,8 @@ export class LinkRecommendationAgent {
       tools: tools.map((t) => (t as any).function.name),
     });
 
-    // Context passed to every tool's buildInput
-    const context: ToolContext = { currentPage };
+    // Context passed to every tool's buildInput — discoveredPageIds grows as pages are found
+    const context: ToolContext = { currentPage, discoveredPageIds: new Set<string>() };
 
     const messages: ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
@@ -198,6 +200,16 @@ export class LinkRecommendationAgent {
 
           // Collect results for the caller
           allResults.push({ tool: toolName, result });
+
+          // Track discovered page IDs for validation
+          if (Array.isArray(result) && !tool.isTerminal) {
+            const pageIds = context.discoveredPageIds as Set<string>;
+            for (const item of result) {
+              if (item && typeof item === "object" && "id" in item) {
+                pageIds.add((item as any).id);
+              }
+            }
+          }
 
           // If this is a terminal tool, capture result and stop
           if (tool.isTerminal) {

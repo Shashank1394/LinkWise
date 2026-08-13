@@ -65,29 +65,23 @@ export class SitecoreRelevantPageProvider implements RelevantPageProvider {
       count: unique.size,
     });
 
-    if (unique.size < MIN_SEARCH_RESULTS) {
-      console.info(
-        "[LinkWise][RelevantPageProvider] Falling back to content tree",
-      );
+    // Always enrich with the full content tree to ensure all navigable pages are available
+    console.info("[LinkWise][RelevantPageProvider] Enriching with content tree");
 
-      const treePages = await this.contentService.getContentTreeRelevantPages(
-        currentPage.siteName,
-        currentPage.language,
-      );
+    const treePages = await this.contentService.getContentTreeRelevantPages(
+      currentPage.siteName,
+      currentPage.language,
+    );
 
-      for (const page of treePages) {
-        if (page.id !== currentPage.id && page.path !== currentPage.path) {
-          unique.set(page.id, page);
-        }
+    for (const page of treePages) {
+      if (page.id !== currentPage.id && page.path !== currentPage.path) {
+        unique.set(page.id, page);
       }
-
-      console.info(
-        "[LinkWise][RelevantPageProvider] Tree enrichment completed",
-        {
-          totalPages: unique.size,
-        },
-      );
     }
+
+    console.info("[LinkWise][RelevantPageProvider] Tree enrichment completed", {
+      totalPages: unique.size,
+    });
 
     const relevantPages = [...unique.values()].slice(0, MAX_RELEVANT_PAGES);
 

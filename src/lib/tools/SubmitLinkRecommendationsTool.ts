@@ -4,6 +4,7 @@ import { LinkOpportunity } from "../types";
 
 export interface SubmitLinkRecommendationsToolInput {
   opportunities: LinkOpportunity[];
+  discoveredPageIds: Set<string>;
 }
 
 /**
@@ -53,22 +54,27 @@ export class SubmitLinkRecommendationsTool extends BaseTool<
     },
   };
 
-  buildInput(args: Record<string, unknown>, _context: ToolContext): SubmitLinkRecommendationsToolInput {
-    return { opportunities: args.opportunities as LinkOpportunity[] };
+  buildInput(args: Record<string, unknown>, context: ToolContext): SubmitLinkRecommendationsToolInput {
+    return {
+      opportunities: args.opportunities as LinkOpportunity[],
+      discoveredPageIds: context.discoveredPageIds as Set<string>,
+    };
   }
 
   protected async executeInternal(
     input: SubmitLinkRecommendationsToolInput,
   ): Promise<LinkOpportunity[]> {
-    // Filter out invalid recommendations
-    const valid = input.opportunities.filter((o) => {
+    const { opportunities, discoveredPageIds } = input;
+
+    // Only keep recommendations that:
+    // 1. Have sourceText of at least 2 words (meaningful phrases)
+    // 2. Point to a page that was actually discovered by the agent
+    // 3. Destination path is an actual page (under /Home/)
+    const valid = opportunities.filter((o) => {
       const words = o.sourceText.trim().split(/\s+/);
-      if (words.length < 3) return false; // Must be at least 3 words
-      const lowerPath = o.destination.path.toLowerCase();
-      if (lowerPath.endsWith("/rich text")) return false;
-      if (lowerPath.endsWith("/content")) return false;
-      if (lowerPath.endsWith("/text")) return false;
-      if (lowerPath.endsWith("/body")) return false;
+      if (words.length < 2) return false;
+      if (discoveredPageIds.size > 0 && !discoveredPageIds.has(o.destination.id)) return false;
+      if (!o.destination.path.toLowerCase().includes("/home/")) return false;
       return true;
     });
 

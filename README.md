@@ -1,6 +1,6 @@
 # LinkWise — AI-Powered Internal Linking Agent for Sitecore
 
-LinkWise is an autonomous LLM agent that analyzes Sitecore CMS pages and recommends internal links. The LLM decides which tools to call using OpenAI's function-calling protocol. The system returns the top 8 recommendations sorted by relevance score.
+LinkWise is an autonomous LLM agent that analyzes Sitecore CMS pages and recommends internal links. The LLM decides which tools to call using OpenAI's function-calling protocol. The system returns up to 15 recommendations sorted by relevance score.
 
 ---
 
@@ -18,7 +18,7 @@ LinkWise is an autonomous LLM agent that analyzes Sitecore CMS pages and recomme
 │  - Fetches current page content from Sitecore               │
 │  - Starts the agent                                         │
 │  - Validates results (destination exists, source linkable)  │
-│  - Returns top 8 by score                                   │
+│  - Returns top 15 by score                                  │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
@@ -26,11 +26,11 @@ LinkWise is an autonomous LLM agent that analyzes Sitecore CMS pages and recomme
 │  LinkRecommendationAgent (src/lib/agent.ts)                 │
 │  - THE TOOL-CALLING LOOP                                    │
 │  - Sends system prompt + full page content to LLM           │
-│  - Offers tools to the LLM                                  │
+│  - Offers tools to the LLM (tool_choice: "required")        │
 │  - Executes whatever tool the LLM calls                     │
 │  - Feeds result back to LLM                                 │
 │  - Repeats until LLM calls submit_link_recommendations      │
-│  - Sorts results by score, caps at 8                        │
+│  - Sorts results by score, caps at 15                       │
 └────────────────────────┬────────────────────────────────────┘
                          │
               ┌──────────┴──────────┐
@@ -44,7 +44,7 @@ LinkWise is an autonomous LLM agent that analyzes Sitecore CMS pages and recomme
        ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Sitecore Services (src/lib/sitecore/)                      │
-│  - SitecoreRelevantPageProvider: search + deduplicate       │
+│  - SitecoreRelevantPageProvider: search + content tree      │
 │  - SitecoreContentService: content retrieval, link insert   │
 │  - AgentApiClient: HTTP calls to Sitecore Agent API         │
 └─────────────────────────────────────────────────────────────┘
@@ -52,20 +52,22 @@ LinkWise is an autonomous LLM agent that analyzes Sitecore CMS pages and recomme
 
 ---
 
-## How the LLM Calls Tools
+## How It Works
 
-The agent uses **OpenAI's function-calling protocol** with `tool_choice: "required"` — the LLM must always call a tool (never plain text responses).
+### Page Discovery
 
-### 1. Setup
+The agent discovers pages through two sources that are always combined:
 
-Each tool in the `ToolRegistry` declares:
-- `name` — the function name the LLM invokes
-- `description` — tells the LLM what the tool does
-- `parameters` — JSON Schema for the expected arguments
-- `isTerminal` — if true, calling this tool ends the agent loop
-- `buildInput(args, context)` — transforms raw LLM arguments + agent context into typed tool input
+1. **Search API** — queries the Sitecore search endpoint with topic-based queries derived from the current page content
+2. **Content Tree** — fetches ALL pages from the site tree (up to 100, in batches of 10) to ensure every navigable page is available
 
-### 2. The Conversation Loop
+Both sources are merged and deduplicated. Only pages whose path contains `/Home/` are passed to the LLM — this ensures only actual navigable pages (not datasources, footers, or field-level items) are considered as link destinations.
+
+### Caching
+
+Search results and page content are cached in memory with a 5-minute TTL. Repeat analyses of the same page or overlapping queries are served from cache without hitting the Sitecore API.
+
+### The Tool-Calling Loop
 
 ```
 ┌─────────── Agent Loop (max 10 iterations) ──────────┐
@@ -78,31 +80,35 @@ Each tool in the `ToolRegistry` declares:
 │     b. Look up the tool in ToolRegistry              │
 │     c. Call tool.buildInput(args, context)            │
 │     d. Execute the tool                              │
-│     e. Append result as a "tool" message             │
-│  4. If tool.isTerminal → sort by score, take top 8   │
+│     e. Track discovered page IDs in context          │
+│     f. Append result as a "tool" message             │
+│  4. If tool.isTerminal → validate, sort, take top 15 │
 │  5. Otherwise → go to step 1                         │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 3. What the LLM Sees
+### LLM Behavior
 
-```
-[system]   → System prompt with rules and workflow
-[user]     → Current page (id, title, path, full content)
-[assistant]→ Previous tool calls
-[tool]     → Full results from executed tools
-...
-```
+- `tool_choice: "required"` — the LLM must always call a tool, never respond with plain text
+- If the LLM somehow responds without a tool call, the agent nudges it with a message to call `submit_link_recommendations`
+- The LLM is encouraged to call `find_relevant_pages` multiple times with different queries if fewer than 6 opportunities are found
 
-### 4. Tool Decision Logic
+---
 
-The LLM has two tools:
+## Quality Controls
 
-- **find_relevant_pages** — Called first. The LLM generates search queries from the page's topics. Returns full content of all matching navigable pages (filtered to exclude internal `/data/` items).
-- **submit_link_recommendations** — Called when done. The LLM submits all link opportunities it found. This ends the loop.
+| Layer | What it checks |
+|-------|---------------|
+| **System prompt** | sourceText must be 2+ words, no single words, no generic anchors, destination must be under `/Home/` |
+| **FindRelevantPagesTool** | Filters results to only pages with `/Home/` in their path |
+| **SubmitLinkRecommendationsTool** | Validates: sourceText ≥ 2 words, destination ID must exist in discovered pages set, destination path must contain `/Home/` |
+| **Agent** | Sorts by score descending, caps at top 15 |
+| **Service** | Verifies destination exists in retrieved pages, verifies sourceText is in a linkable rich-text field |
 
-The LLM receives the full content of all discovered pages in one shot. It reads through everything, identifies phrases from the current page that match destination topics, and submits all valid opportunities at once.
+### Destination Validation (Dynamic)
+
+The agent tracks every page ID returned by `find_relevant_pages` in a `discoveredPageIds` set. When the LLM submits recommendations, each destination ID is validated against this set. If the LLM invents an ID or references a page not returned by the tools, it gets rejected. No hardcoded path patterns needed.
 
 ---
 
@@ -120,7 +126,6 @@ src/app/api/link-opportunities/route.ts
 src/lib/service.ts (LinkAnalysisService.analyze)
   → src/lib/sitecore/SitecoreContentService.ts (getPagePlainText)
     → src/lib/sitecore/AgentApiClient.ts (getContentItem, getPageComponents)
-      → HTTP calls to Sitecore Agent API
 ```
 
 ### Step 3: Agent loop starts
@@ -128,61 +133,40 @@ src/lib/service.ts (LinkAnalysisService.analyze)
 src/lib/agent.ts (LinkRecommendationAgent.run)
   → src/lib/tools/index.ts (createToolRegistry)
     → Registers: FindRelevantPagesTool, SubmitLinkRecommendationsTool
-  → Builds OpenAI tool definitions from registry
   → Sends first request to LLM via OpenRouter
 ```
 
 ### Step 4: LLM calls find_relevant_pages
 ```
-src/lib/agent.ts (processes tool call)
+src/lib/agent.ts
   → src/lib/tools/FindRelevantPagesTool.ts (execute)
     → src/lib/sitecore/SitecoreRelevantPageProvider.ts (getRelevantPages)
-      → src/lib/sitecore/SitecoreContentService.ts (searchRelevantPages)
-        → src/lib/sitecore/AgentApiClient.ts (searchPages)
-          → HTTP: GET /api/v1/pages/search
-      → src/lib/sitecore/PageMapper.ts (mapToRelevantPage)
-    → Filters out /data/ paths (non-navigable items)
+      → Search API (parallel queries)
+      → Content Tree (batches of 10, always included)
+      → Merge + deduplicate
+    → Filter to /Home/ pages only
   → Full page content fed back to LLM
 ```
 
 ### Step 5: LLM calls submit_link_recommendations (terminal)
 ```
-src/lib/agent.ts (processes tool call)
+src/lib/agent.ts
   → src/lib/tools/SubmitLinkRecommendationsTool.ts (execute)
-    → Validates: minimum 3 words in sourceText, no /data/ paths
-    → Returns valid opportunities
-  → Agent loop ENDS
-  → Sort by score descending, take top 8
+    → Validates against discoveredPageIds set
+    → Validates sourceText ≥ 2 words
+    → Validates destination path contains /Home/
+  → Agent sorts by score, takes top 15
+  → Loop ends
 ```
 
 ### Step 6: Service validates results
 ```
-src/lib/service.ts (continues after agent.run returns)
+src/lib/service.ts
   → Checks destinations exist in retrieved pages
   → For each opportunity: calls isSourceTextLinkable()
-    → Verifies the suggested text exists in an editable rich-text field
-  → Returns validated opportunities to API route
+    → Verifies text exists in an editable rich-text field
+  → Returns validated opportunities
 ```
-
-### Step 7: API Route returns response
-```
-src/app/api/link-opportunities/route.ts
-  → Returns JSON: { success: true, opportunities: [...] }
-```
-
----
-
-## Quality Controls
-
-The system enforces quality at multiple layers:
-
-| Layer | What it checks |
-|-------|---------------|
-| **System prompt** | sourceText must be 3+ words, no single words, no generic anchors, no `/data/` paths |
-| **FindRelevantPagesTool** | Filters out all non-navigable pages (`/data/`, `/rich text`) before LLM sees them |
-| **SubmitLinkRecommendationsTool** | Validates submissions: rejects <3 word sourceText, rejects `/data/` destinations |
-| **Agent** | Sorts by score, caps at top 8 |
-| **Service** | Verifies destination exists in retrieved pages, verifies sourceText is in a linkable rich-text field |
 
 ---
 
@@ -200,14 +184,14 @@ src/lib/
 │   ├── Tool.ts           — Tool interface + toOpenAiTool()
 │   ├── BaseTool.ts       — Abstract base class with logging
 │   ├── ToolRegistry.ts   — Name → Tool map
-│   ├── FindRelevantPagesTool.ts      — Search for pages (returns full content)
-│   └── SubmitLinkRecommendationsTool.ts — Submit final results (terminal)
+│   ├── FindRelevantPagesTool.ts      — Search + content tree (returns full content)
+│   └── SubmitLinkRecommendationsTool.ts — Submit + validate (terminal)
 │
 └── sitecore/             — Sitecore CMS integration
     ├── AgentApiClient.ts             — HTTP client (auth, 30s timeout)
-    ├── auth.ts                       — OAuth token management (cached)
-    ├── SitecoreContentService.ts     — Search, content, link insertion
-    ├── SitecoreRelevantPageProvider.ts — Search orchestration + dedup
+    ├── auth.ts                       — OAuth token management (cached 24h)
+    ├── SitecoreContentService.ts     — Search, content (cached 5min), link insertion
+    ├── SitecoreRelevantPageProvider.ts — Search + tree enrichment + dedup
     ├── PageMapper.ts                 — Map API results → RelevantPage (strips HTML)
     └── types.ts                      — Sitecore-specific types
 ```
@@ -216,22 +200,20 @@ src/lib/
 
 ## Logging
 
-Every tool invocation is logged:
-
 ```
 [LinkWise][Agent] Run started           { runId, pageId, siteName }
 [LinkWise][Agent] Tools offered to LLM  { tools: ['find_relevant_pages', 'submit_link_recommendations'] }
 [LinkWise][Agent] Iteration             { iteration: 1, messages: 2 }
-[LinkWise][Agent] LLM responded         { finishReason: 'tool_calls', toolCalls: 1, usage: {...} }
-[LinkWise][Agent] LLM invoked tool      { tool: 'find_relevant_pages', arguments: '{"queries":[...]}' }
-[LinkWise][Tool][FindRelevantPages]     { queries: [...], count: 47, navigable: 12 }
-[LinkWise][Agent] Tool result           { items: 12 }
-[LinkWise][Agent] Iteration             { iteration: 2, messages: 4 }
-[LinkWise][Agent] LLM invoked tool      { tool: 'submit_link_recommendations', arguments: '...' }
-[LinkWise][Tool][SubmitRecommendations] { received: 5, valid: 4, filtered: 1 }
-[LinkWise][Agent] Terminal tool called   { submitted: 4, willKeepTop: 8 }
-[LinkWise][Agent] Run completed         { iterations: 2, pages: 12, opportunities: 4 }
-[LinkWise][Service] Analysis completed  { recommendations: 3, durationMs: 22000 }
+[LinkWise][Agent] LLM responded         { finishReason, toolCalls, usage }
+[LinkWise][Agent] LLM invoked tool      { tool, arguments }
+[LinkWise][Tool][FindRelevantPages]     { queries, count, filtered }
+[LinkWise][RelevantPageProvider]        { search results, tree enrichment, total }
+[LinkWise][Agent] Tool result           { items }
+[LinkWise][Agent] LLM invoked tool      { tool: 'submit_link_recommendations' }
+[LinkWise][Tool][SubmitRecommendations] { received, valid, filtered }
+[LinkWise][Agent] Terminal tool called   { submitted, willKeepTop: 15 }
+[LinkWise][Agent] Run completed         { iterations, pages, opportunities, durationMs }
+[LinkWise][Service] Analysis completed  { recommendations, durationMs }
 ```
 
 ---
@@ -257,9 +239,10 @@ Every tool invocation is logged:
 | Constant | Value | Location |
 |----------|-------|----------|
 | `MAX_ITERATIONS` | 10 | `agent.ts` |
-| `MAX_RECOMMENDATIONS` | 8 | `agent.ts` |
+| `MAX_RECOMMENDATIONS` | 15 | `agent.ts` |
 | `MAX_RELEVANT_PAGES` | 100 | `SitecoreRelevantPageProvider.ts` |
 | `BATCH_SIZE` (content tree) | 10 | `SitecoreContentService.ts` |
+| `CACHE_TTL_MS` | 5 minutes | `SitecoreContentService.ts` |
 
 ---
 

@@ -19,7 +19,7 @@ export class SubmitLinkRecommendationsTool extends BaseTool<
   readonly isTerminal = true;
 
   readonly description =
-    "Submit your final internal-link recommendations. Call this once you have analyzed the relevant pages and determined which links to suggest. Provide up to 8 opportunities, or an empty array if none are suitable.";
+    "Submit your final internal-link recommendations. Call this once you have analyzed the relevant pages and determined which links to suggest. Provide up to 15 opportunities, or an empty array if none are suitable.";
 
   readonly parameters = {
     type: "object",

@@ -23,9 +23,9 @@ export class FindRelevantPagesTool extends BaseTool<
     properties: {
       queries: {
         type: "array",
-        description: "3 to 8 concise search queries describing the page's key topics.",
+        description: "3 to 15 concise search queries describing the page's key topics.",
         minItems: 1,
-        maxItems: 8,
+        maxItems: 15,
         items: { type: "string" },
       },
     },

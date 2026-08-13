@@ -22,6 +22,6 @@ export const LinkOpportunitiesSchema = z.array(LinkOpportunitySchema);
 export const ContentSearchQueriesSchema = z
   .array(z.string().trim().min(2).max(120))
   .min(1)
-  .max(8);
+  .max(10);
 
 export type LinkOpportunityResponse = z.infer<typeof LinkOpportunitiesSchema>;

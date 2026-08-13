@@ -3,7 +3,7 @@ import { SitecoreContentService } from "./SitecoreContentService";
 
 const MAX_SEARCH_TERMS = 20;
 const MAX_RELEVANT_PAGES = 100;
-const MIN_SEARCH_RESULTS = 8;
+const MIN_SEARCH_RESULTS = 15;
 
 export class SitecoreRelevantPageProvider implements RelevantPageProvider {
   constructor(private readonly contentService = new SitecoreContentService()) {}

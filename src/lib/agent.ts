@@ -1,7 +1,12 @@
 import OpenAI from "openai";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
-import { createToolRegistry, toOpenAiTool, ToolRegistry, ToolContext } from "./tools";
+import {
+  createToolRegistry,
+  toOpenAiTool,
+  ToolRegistry,
+  ToolContext,
+} from "./tools";
 import { RelevantPage, CurrentPage, LinkOpportunity } from "./types";
 
 const MAX_ITERATIONS = 10;
@@ -56,7 +61,9 @@ export interface AgentResult {
 }
 
 export class LinkRecommendationAgent {
-  constructor(private readonly toolRegistry: ToolRegistry = createToolRegistry()) {}
+  constructor(
+    private readonly toolRegistry: ToolRegistry = createToolRegistry(),
+  ) {}
 
   async run(currentPage: CurrentPage): Promise<AgentResult> {
     const runId = crypto.randomUUID();
@@ -82,7 +89,10 @@ export class LinkRecommendationAgent {
     });
 
     // Context passed to every tool's buildInput — discoveredPageIds grows as pages are found
-    const context: ToolContext = { currentPage, discoveredPageIds: new Set<string>() };
+    const context: ToolContext = {
+      currentPage,
+      discoveredPageIds: new Set<string>(),
+    };
 
     const messages: ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
@@ -107,7 +117,11 @@ export class LinkRecommendationAgent {
     while (iteration < MAX_ITERATIONS) {
       iteration++;
 
-      console.info("[LinkWise][Agent] Iteration", { runId, iteration, messages: messages.length });
+      console.info("[LinkWise][Agent] Iteration", {
+        runId,
+        iteration,
+        messages: messages.length,
+      });
 
       const response = await client.chat.completions.create({
         model: getModel(),
@@ -116,6 +130,8 @@ export class LinkRecommendationAgent {
         tools,
         tool_choice: "required",
       });
+
+      console.log("[LinkWise][Agent] Actual model used:", response.model);
 
       const choice = response.choices?.[0];
 
@@ -141,11 +157,15 @@ export class LinkRecommendationAgent {
 
       // LLM stopped without calling a tool — nudge it to submit
       if (!assistantMessage.tool_calls?.length) {
-        console.warn("[LinkWise][Agent] LLM responded without tool call — nudging", { runId, iteration });
+        console.warn(
+          "[LinkWise][Agent] LLM responded without tool call — nudging",
+          { runId, iteration },
+        );
         messages.push(assistantMessage as ChatCompletionMessageParam);
         messages.push({
           role: "user",
-          content: "You must call submit_link_recommendations now with all the link opportunities you found. If you found none, call it with an empty array.",
+          content:
+            "You must call submit_link_recommendations now with all the link opportunities you found. If you found none, call it with an empty array.",
         });
         continue;
       }
@@ -168,7 +188,11 @@ export class LinkRecommendationAgent {
         const tool = this.toolRegistry.get(toolName);
         if (!tool) {
           console.warn("[LinkWise][Agent] Unknown tool", { runId, toolName });
-          messages.push({ role: "tool", tool_call_id: toolCall.id, content: `Error: unknown tool "${toolName}"` });
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: `Error: unknown tool "${toolName}"`,
+          });
           continue;
         }
 
@@ -176,8 +200,16 @@ export class LinkRecommendationAgent {
         try {
           parsed = JSON.parse(toolArgs);
         } catch {
-          console.error("[LinkWise][Agent] Bad JSON from LLM", { runId, toolName, toolArgs });
-          messages.push({ role: "tool", tool_call_id: toolCall.id, content: "Error: invalid JSON" });
+          console.error("[LinkWise][Agent] Bad JSON from LLM", {
+            runId,
+            toolName,
+            toolArgs,
+          });
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: "Error: invalid JSON",
+          });
           continue;
         }
 
@@ -224,7 +256,11 @@ export class LinkRecommendationAgent {
               willKeepTop: MAX_RECOMMENDATIONS,
             });
 
-            messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ success: true, count: submitted }) });
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: JSON.stringify({ success: true, count: submitted }),
+            });
             shouldBreak = true;
             break;
           }
@@ -238,8 +274,16 @@ export class LinkRecommendationAgent {
           });
         } catch (error) {
           const msg = error instanceof Error ? error.message : "Unknown error";
-          console.error("[LinkWise][Agent] Tool error", { runId, tool: toolName, error: msg });
-          messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ error: msg }) });
+          console.error("[LinkWise][Agent] Tool error", {
+            runId,
+            tool: toolName,
+            error: msg,
+          });
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ error: msg }),
+          });
         }
       }
 
@@ -257,8 +301,16 @@ export class LinkRecommendationAgent {
 
     // Collect all RelevantPage results from any tool that returned page arrays
     const relevantPages = allResults.flatMap((entry: any) => {
-      if (entry.tool !== "submit_link_recommendations" && Array.isArray(entry.result)) {
-        return entry.result.filter((item: any) => item && typeof item.id === "string" && typeof item.path === "string");
+      if (
+        entry.tool !== "submit_link_recommendations" &&
+        Array.isArray(entry.result)
+      ) {
+        return entry.result.filter(
+          (item: any) =>
+            item &&
+            typeof item.id === "string" &&
+            typeof item.path === "string",
+        );
       }
       return [];
     }) as RelevantPage[];

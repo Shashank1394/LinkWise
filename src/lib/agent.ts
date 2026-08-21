@@ -328,5 +328,5 @@ export class LinkRecommendationAgent {
 }
 
 function getModel(): string {
-  return process.env.OPENROUTER_MODEL ?? "deepseek/deepseek-chat-v3-0324:free";
+  return process.env.OPENROUTER_MODEL ?? "openrouter/free";
 }
